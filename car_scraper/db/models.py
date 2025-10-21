@@ -5,7 +5,7 @@ from sqlalchemy import String, DateTime, UniqueConstraint
 class Base(DeclarativeBase): pass
 
 class Brand(Base):
-    __tablename__ = "marcas"
+    __tablename__ = "brands"
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     source: Mapped[str] = mapped_column(String(32), nullable=False)
