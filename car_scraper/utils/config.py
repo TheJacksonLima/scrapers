@@ -1,8 +1,11 @@
 from decouple import Config, RepositoryEnv
 from pathlib import Path
+import os
 
-env_path = Path(__file__).parent.parent / "application.properties"
+basePath = Path(__file__).parent.parent
+env_path = basePath / "application.properties"
 config = Config(repository=RepositoryEnv(str(env_path)))
+
 
 class Settings:
     """Central configuration object for environment variables."""
@@ -13,11 +16,14 @@ class Settings:
     OLX_AUTO_URL: str = config("OLX_AUTO_URL", default="https://www.olx.com.br/autos")
 
     # Database connection
-    DB_URL: str = config("DB_URL")
-    DB_USER: str = config("DB_USERNAME", default="")
-    DB_PASSWORD: str = config("DB_PASSWORD", default="")
+    DATABASE_URL: str = config("DATABASE_URL", default="")
 
     HEADLESS: bool = config("HEADLESS", cast=bool, default=False)
     TIMEOUT: int = config("TIMEOUT", cast=int, default=20000)
+
+    LOG_DIR = config("LOG_DIR", default=str(basePath / "logs"))
+    LOG_FILE = config("LOG_FILE", default="car_scraper.log")
+    LOG_LEVEL = config("LOG_LEVEL", default="INFO").upper()
+
 
 settings = Settings()

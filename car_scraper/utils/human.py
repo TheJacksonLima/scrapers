@@ -1,6 +1,9 @@
-import time,random
+import time, random
+
+
 def human_delay(a=0.8, b=2.0):
     time.sleep(random.uniform(a, b))
+
 
 def human_scroll(page, distance=600):
     step = 60
