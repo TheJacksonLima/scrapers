@@ -1,8 +1,8 @@
-from typing import List
+from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from car_scraper.db.models import Brand
+from car_scraper.db.models.brand import Brand
 from car_scraper.scrapers.scraper import BrandDTO
 
 
@@ -30,3 +30,13 @@ class BrandRepository:
         else:
             brand.url = dto.href
         return brand
+
+    def update_total_ads(self, name: str, source: str, total_ads: int) -> Optional[Brand]:
+        brand = self.get_by_name_and_source(source, name)
+        if brand:
+            brand.total_ads = total_ads
+            self.db.add(brand)
+            self.db.commit()
+            self.db.refresh(brand)
+            return brand
+        return None

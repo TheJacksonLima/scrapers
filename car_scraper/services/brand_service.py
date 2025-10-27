@@ -1,6 +1,6 @@
-from typing import List, Optional
+from typing import List
 from car_scraper.db.session import SessionLocal
-from car_scraper.db.models import Brand
+from car_scraper.db.models.brand import Brand
 from car_scraper.db.brand_repository import BrandRepository
 from car_scraper.scrapers import BrandDTO
 
@@ -41,3 +41,12 @@ class BrandService:
                 saved.append(brand)
             db.commit()
             return saved
+
+    def update_ads(self, name: str, source: str, total_ads: int):
+        with SessionLocal() as db:
+            repo = BrandRepository(db)
+            repo.update_total_ads(name,source,total_ads)
+            db.commit()
+        return repo.get_by_name_and_source(name,source)
+
+
