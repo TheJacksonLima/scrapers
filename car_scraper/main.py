@@ -11,23 +11,16 @@ web_motors = Webmotors_Scraper()
 def get_cars_from_brand(source: str, brand: str):
      brand_dto = service.get_brand_url(source,brand)
      print(f"{brand_dto.name}\n{brand_dto.href}")
-     web_motors.get_cars_from_brand(brand_dto)
-
-
+     total = web_motors.get_total_ads()
+     print(f"Total ads:{total}\n")
 
 def get_brands():
-
     brands = web_motors.get_brands()
     saved = service.save_brands(brands)
     logger.info(f"{len(saved)} brands updated/inserted.")
 
-
 def main():
     logger.info("Starting scraper...")
-
-    #   engine = create_engine(settings.DATABASE_URL, future=True)
-    #   Base.metadata.create_all(engine)
-
     try:
         #get_brands()
         get_cars_from_brand("webmotors","Volkswagen")

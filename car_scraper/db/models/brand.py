@@ -1,0 +1,36 @@
+from datetime import datetime, timezone
+from sqlalchemy import String, DateTime, Integer, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from car_scraper.db.models.base import Base
+
+class Brand(Base):
+    __tablename__ = "brands"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    source: Mapped[str] = mapped_column(String(32), nullable=False)
+    url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    total_ads: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    # RELACIONAMENTO ↔ CarInfo
+    cars: Mapped[list["CarInfo"]] = relationship(
+        "CarInfo",
+        back_populates="brand",
+        cascade="all, delete-orphan",
+    )
+
+    __table_args__ = (
+        UniqueConstraint("name", "source", name="uk_brand_name_source"),
+    )
