@@ -1,3 +1,3 @@
-from .scraper import BrandDTO, BaseScraper
+from .scraper import BaseScraper
 
-__all__ = ["BrandDTO", "BaseScraper"]
+__all__ = ["BaseScraper"]

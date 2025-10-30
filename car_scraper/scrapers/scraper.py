@@ -1,21 +1,14 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional
-from dataclasses import dataclass
-
-
-@dataclass
-class BrandDTO:
-    name: str
-    href: Optional[str] = None
-    source: str = "unknown"  # "webmotors" | "icarros" | "olx_auto"
+from typing import List
+from car_scraper.db.models.dto.BradDTO import BrandDTO
+from car_scraper.db.models.dto.CarDownloadInfoDTO import CarDownloadInfoDTO
 
 
 class BaseScraper(ABC):
     @abstractmethod
     def get_brands(self) -> List[BrandDTO]:
-        """Fetch and return a list of brand data from a source."""
         pass
 
-    def get_cars_from_brands(self):
-        """Fetch and return a list of cars from a given brand."""
+    @abstractmethod
+    def get_cars_from_brand(self, brand: BrandDTO) -> list[CarDownloadInfoDTO]:
         pass

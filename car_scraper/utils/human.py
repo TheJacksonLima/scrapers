@@ -1,6 +1,8 @@
-import time
 import random
+import time
 from bs4 import BeautifulSoup
+from sqlalchemy.dialects import postgresql
+
 
 def human_delay(a=0.8, b=2.0):
     time.sleep(random.uniform(a, b))
@@ -37,3 +39,9 @@ def show_html(container, size=2000):
     print("===== CONTAINER HTML =====")
     print(pretty_html[:size])
     print("===== END OF HTML =====")
+
+
+def show_sql(stmt):
+    print("===== SQL =====")
+    print(stmt.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
+    print("==========")
