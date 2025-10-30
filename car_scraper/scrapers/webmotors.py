@@ -1,111 +1,137 @@
-from playwright.sync_api import sync_playwright
-from car_scraper.scrapers.scraper import BaseScraper, BrandDTO
-from car_scraper.utils.human import human_delay, human_scroll, human_scroll_to_bottom, show_html
-from car_scraper.utils.config import settings
-import re
 import logging
+import re
+from car_scraper.db.models.dto.CarDownloadInfoDTO import CarDownloadInfoDTO
+from car_scraper.db.models.dto.BradDTO import BrandDTO
+from contextlib import contextmanager
+from typing import Iterator, List, Optional
+from playwright.sync_api import sync_playwright, Page, BrowserContext
+from car_scraper.scrapers.scraper import BaseScraper
+from car_scraper.utils.human import human_delay, human_scroll, human_scroll_to_bottom
+from car_scraper.utils.config import settings
 
 logger = logging.getLogger(__name__)
 
+# =========================
+# Constantes (seletores/tempo)
+# =========================
+BTN_BRANDS = "button.filters-make-select-picker_Button__2ESw5"
+LI_BRAND = ".filters-make-select-list_BodyListItem__XTOEv"
+MAIN_READY = "main.search-result_Container__zDYhq a[href] h2"
+DIV_INNER = "div._Inner_nv1r7_20"
+SKELETON = "[data-testid='skeleton-0']"
+TOTAL_ADS = 'p[data-qa="research_container"]'
+
+WAIT_SHORT = 5_000
+WAIT_STD = 20_000
+
+UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+      "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+
+VIEWPORT = {"width": 1366, "height": 768}
+HDRS = {"Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8"}
+
 
 class Webmotors_Scraper(BaseScraper):
-    def __init__(self, url_base: str | None = None):
+    def __init__(self, url_base: Optional[str] = None, headless: bool = False):
         self.url_base = (url_base or settings.WEBMOTORS_URL).rstrip("/") + "/carros-usados"
+        self.headless = headless
+        self._re_num = re.compile(r"([\d\.,]+)")
 
-    def get_brands(self) -> list[BrandDTO]:
-
+    # -------------------------
+    # Infra compartilhada (DRY)
+    # -------------------------
+    @contextmanager
+    def _page(self, url: Optional[str] = None) -> Iterator[Page]:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=False, args=["--disable-blink-features=AutomationControlled"])
-            context = browser.new_context(
-                user_agent=("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                            "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"),
-                locale="pt-BR", viewport={"width": 1366, "height": 768},
-                extra_http_headers={"Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8"}
+            browser = p.chromium.launch(headless=self.headless, args=["--disable-blink-features=AutomationControlled"])
+            context: BrowserContext = browser.new_context(
+                user_agent=UA,
+                locale="pt-BR",
+                viewport=VIEWPORT,
+                extra_http_headers=HDRS
             )
             page = context.new_page()
-            page.goto(self.url_base, wait_until="domcontentloaded")
+            try:
+                if url:
+                    page.goto(url, wait_until="domcontentloaded")
+                yield page
+            finally:
+                context.close()
+                browser.close()
+
+    def _wait_results_ready(self, page: Page) -> None:
+        try:
+            page.wait_for_selector(SKELETON, timeout=WAIT_SHORT)
+        except Exception:
+            pass  # pode não aparecer
+
+        page.wait_for_function(
+            "selector => !document.querySelector(selector)",
+            arg=SKELETON,
+            timeout=WAIT_STD
+        )
+
+        page.wait_for_selector(MAIN_READY, timeout=WAIT_STD)
+
+    # -------------------------
+    # Métodos principais
+    # -------------------------
+    def get_brands(self) -> List[BrandDTO]:
+        with self._page(self.url_base) as page:
             human_scroll(page, 600)
 
-            page.wait_for_selector("button.filters-make-select-picker_Button__2ESw5", timeout=20000)
-            page.click("button.filters-make-select-picker_Button__2ESw5")
+            page.wait_for_selector(BTN_BRANDS, timeout=WAIT_STD)
+            page.click(BTN_BRANDS)
 
-            page.wait_for_selector(".filters-make-select-list_BodyListItem__XTOEv", timeout=20000)
-            itens = page.locator(".filters-make-select-list_BodyListItem__XTOEv")
-            list_brands: list[BrandDTO] = []
+            page.wait_for_selector(LI_BRAND, timeout=WAIT_STD)
+            itens = page.locator(LI_BRAND)
 
             logger.info("getting brand links and name")
-            for i in range(itens.count()):
+            brands: List[BrandDTO] = []
+            count = itens.count()
+            for i in range(count):
                 li = itens.nth(i)
-                name = li.text_content().strip()
+                name = (li.text_content() or "").strip()
                 href = li.locator("a").get_attribute("href")
+                if not name or not href:
+                    continue
                 logger.info(f"{name} : {href}")
-                list_brands.append(BrandDTO(name=name, href=href, source="webmotors"))
+                brands.append(BrandDTO(name=name, href=href, source="webmotors"))
                 human_delay(0.2, 0.6)
 
-            browser.close()
-            return list_brands
+            return brands
 
-    def get_total_ads(self):
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=False, args=["--disable-blink-features=AutomationControlled"])
-            context = browser.new_context(
-                user_agent=("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                            "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"),
-                locale="pt-BR", viewport={"width": 1366, "height": 768},
-                extra_http_headers={"Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8"}
-            )
-            page = context.new_page()
-            page.goto(brand.href, wait_until="domcontentloaded")
+    def get_total_ads(self, brand: BrandDTO) -> Optional[int]:
+        if not brand.href:
+            return None
 
-            try:
-                page.wait_for_selector("[data-testid='skeleton-0']", timeout=5000)
-            except:
-                pass
-
-            page.wait_for_function("() => !document.querySelector('[data-testid=\"skeleton-0\"]')", timeout=20000)
-            page.wait_for_selector("main.search-result_Container__zDYhq a[href] h2", timeout=20000)
+        with self._page(brand.href) as page:
+            self._wait_results_ready(page)
             human_scroll_to_bottom(page)
 
-            page.wait_for_selector("div._Inner_nv1r7_20", timeout=20000)
-            page.wait_for_selector('p[data-qa="research_container"]', timeout=10000)
-            element = page.locator('p[data-qa="research_container"]').first
-            print(f"Element: {element} type{type(element)}")
-        
-            text = element.inner_text().strip()
-            match = re.search(r"([\d\.,]+)", text)
-            if match:
-                return match.group(1)
-            else:
-                return None
+            page.wait_for_selector(DIV_INNER, timeout=WAIT_STD)
+            page.wait_for_selector(TOTAL_ADS, timeout=WAIT_STD)
 
+            text = page.locator(TOTAL_ADS).first.inner_text().strip()
+            m = self._re_num.search(text)
+            return int(m.group(1).replace(".", "")) if m else None
 
-    def get_cars_from_brand(self, brand: BrandDTO):
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=False, args=["--disable-blink-features=AutomationControlled"])
-            context = browser.new_context(
-                user_agent=("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                            "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"),
-                locale="pt-BR", viewport={"width": 1366, "height": 768},
-                extra_http_headers={"Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8"}
-            )
-            page = context.new_page()
-            page.goto(brand.href, wait_until="domcontentloaded")
+    def get_cars_from_brand(self, brand: BrandDTO) -> list[CarDownloadInfoDTO]:
+        if not brand.href:
+            return []
 
-            try:
-                page.wait_for_selector("[data-testid='skeleton-0']", timeout=5000)
-            except:
-                pass
-
-            page.wait_for_function("() => !document.querySelector('[data-testid=\"skeleton-0\"]')", timeout=20000)
-            page.wait_for_selector("main.search-result_Container__zDYhq a[href] h2", timeout=20000)
+        logger.info(f"Getting adds from: {brand.href}")
+        with self._page(brand.href) as page:
+            self._wait_results_ready(page)
             human_scroll_to_bottom(page)
+            page.wait_for_selector(DIV_INNER, timeout=WAIT_STD)
 
-            page.wait_for_selector("div._Inner_nv1r7_20", timeout=20000)
-
-            inners = page.locator("div._Inner_nv1r7_20")
+            inners = page.locator(DIV_INNER)
             count = inners.count()
-            print(f"Ads on the page {count} divs _Inner_nv1r7_20")
-            cars = []
+            logger.info(f"Ads on the page: {count}")
+
+            cars: list[CarDownloadInfoDTO] = []
+
             for i in range(count):
                 inner = inners.nth(i)
                 first_child = inner.locator("> div").first
@@ -118,8 +144,13 @@ class Webmotors_Scraper(BaseScraper):
                 src = (img_tag.get_attribute("src") or "").replace("\\", "/").strip()
 
                 if href and alt and src:
-                    cars.append({
-                        "href": href,
-                        "car_desc": alt,
-                        "image": src
-                    })
+                    cars.append(
+                        CarDownloadInfoDTO(
+                            href=href,
+                            car_desc=alt,
+                            image=src,
+                            brand_id=brand.id if hasattr(brand, "id") else None
+                        )
+                    )
+
+        return cars

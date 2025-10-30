@@ -24,9 +24,8 @@ class Brand(Base):
         nullable=False,
     )
 
-    # RELACIONAMENTO ↔ CarInfo
-    cars: Mapped[list["CarInfo"]] = relationship(
-        "CarInfo",
+    cars: Mapped[list["CarDownloadInfo"]] = relationship(
+        "CarDownloadInfo",
         back_populates="brand",
         cascade="all, delete-orphan",
     )
@@ -34,3 +33,6 @@ class Brand(Base):
     __table_args__ = (
         UniqueConstraint("name", "source", name="uk_brand_name_source"),
     )
+
+    def __repr__(self):
+        return f"<Brand(id={self.id}, name='{self.name}', source='{self.source}', total_ads={self.total_ads})>"
