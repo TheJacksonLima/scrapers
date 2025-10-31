@@ -3,9 +3,8 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from car_scraper.db.models import CarDownloadInfo
-from car_scraper.db.models.brand import Brand
+from car_scraper.db.entity.brand import Brand
 from car_scraper.scrapers.scraper import BrandDTO
-from car_scraper.utils.human import show_sql
 
 logger = logging.getLogger(__name__)
 

@@ -1,2 +1,2 @@
-from .models.base import Base
+from car_scraper.db.entity.base import Base
 from .session import engine, SessionLocal

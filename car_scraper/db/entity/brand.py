@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from sqlalchemy import String, DateTime, Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from car_scraper.db.models.base import Base
+from car_scraper.db.entity.base import Base
 
 class Brand(Base):
     __tablename__ = "brands"

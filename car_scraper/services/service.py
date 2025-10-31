@@ -1,7 +1,7 @@
 from typing import List
 
 from car_scraper.db.repository import Repository
-from car_scraper.db.models.brand import Brand
+from car_scraper.db.entity.brand import Brand
 from car_scraper.db.models.dto.CarDownloadInfoDTO import CarDownloadInfoDTO
 from car_scraper.db.session import SessionLocal
 from car_scraper.db.models.dto.BradDTO import BrandDTO
