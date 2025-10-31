@@ -1,5 +1,5 @@
 import re
-from car_scraper.db.models.base import Base  # ou declarative_base se você usa direto
+from car_scraper.db.entity.base import Base  # ou declarative_base se você usa direto
 from car_scraper.db.models.dto.BradDTO import BrandDTO
 from car_scraper.db.session import engine
 from car_scraper.scrapers.webmotors import Webmotors_Scraper

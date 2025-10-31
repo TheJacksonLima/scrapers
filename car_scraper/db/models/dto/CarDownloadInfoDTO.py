@@ -1,6 +1,6 @@
 from typing import List,Optional
 from dataclasses import dataclass
-from car_scraper.db.models import CarDownloadInfo
+from car_scraper.db.entity import CarDownloadInfo
 
 
 @dataclass
