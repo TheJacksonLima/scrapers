@@ -2,6 +2,8 @@ import logging
 from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+
+from car_scraper.db.entity import JobDownloadControl
 from car_scraper.db.models import CarDownloadInfo
 from car_scraper.db.entity.brand import Brand
 from car_scraper.scrapers.scraper import BrandDTO
@@ -19,6 +21,10 @@ class Repository:
 
     def get_by_source_and_name(self, source: str, name: str) -> Brand | None:
         stmt = select(Brand).where(Brand.name == name, Brand.source == source)
+        return self.db.execute(stmt).scalar_one_or_none()
+
+    def get_batch_by_job_id(self, job_id):
+        stmt = select(JobDownloadControl).where(JobDownloadControl.job_id == job_id)
         return self.db.execute(stmt).scalar_one_or_none()
 
     def save(self, dto: BrandDTO) -> Brand:
@@ -50,7 +56,6 @@ class Repository:
 
     def save_car_download_info(self, car_download_info: CarDownloadInfo):
         existing = self.get_car_download_info_by_href(car_download_info.href)
-        #logger.info(f"Found: {existing}")
         if existing:
             changed = False
             if existing.car_desc != car_download_info.car_desc:
@@ -68,8 +73,6 @@ class Repository:
                 self.db.commit()
                 self.db.refresh(existing)
                 logger.info(f"Updated existing ad: {existing.href}")
-            #else:
-                #logger.info(f"No changes detected for car_download_info: {existing.href}")
 
             return existing
 
@@ -78,3 +81,36 @@ class Repository:
         self.db.refresh(car_download_info)
         logger.info(f"Inserted new car_download_info: {car_download_info.href}")
         return car_download_info
+
+    def create_batch(self, batch: JobDownloadControl):
+        self.db.add(batch)
+        self.db.commit()
+        self.db.refresh(batch)
+        return self.get_batch_by_job_id(batch.job_id)
+
+    def update_batch(self, batch: JobDownloadControl) -> JobDownloadControl | None:
+        existing_batch = self.get_batch_by_job_id(batch.job_id)
+
+        if existing_batch:
+            changed = False
+
+            if existing_batch.last_page != batch.last_page:
+                existing_batch.last_page = batch.last_page
+                changed = True
+
+            if existing_batch.status != batch.status:
+                existing_batch.status = batch.status
+                changed = True
+
+            if existing_batch.attempts != batch.attempts:
+                existing_batch.attempts = batch.attempts
+                changed = True
+
+            if changed:
+                self.db.add(existing_batch)
+                self.db.commit()
+                self.db.refresh(existing_batch)
+                logger.info(f"Updated batch id: {existing_batch.job_id} to {existing_batch.status}")
+                return existing_batch
+
+        return None
