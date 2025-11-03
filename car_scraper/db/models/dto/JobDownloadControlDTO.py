@@ -41,20 +41,20 @@ class JobDownloadControlDTO:
         )
 
     @staticmethod
-    def from_entity(entity: JobDownloadControl) -> "JobDownloadControlDTO":
+    def from_entity(self) -> "JobDownloadControlDTO":
         return JobDownloadControlDTO(
-            job_id=entity.job_id,
-            job_type=entity.job_type,
-            source_name=entity.source_name,
-            status=entity.status,
-            error_message=entity.error_message,
-            last_page=entity.last_page,
-            total_pages=entity.total_pages,
-            attempts=entity.attempts,
-            created_at=entity.created_at,
-            updated_at=entity.updated_at,
-            started_at=entity.started_at,
-            finished_at=entity.finished_at
+            job_id=self.job_id,
+            job_type=self.job_type,
+            source_name=self.source_name,
+            status=self.status,
+            error_message=self.error_message,
+            last_page=self.last_page,
+            total_pages=self.total_pages,
+            attempts=self.attempts,
+            created_at=self.created_at,
+            updated_at=self.updated_at,
+            started_at=self.started_at,
+            finished_at=self.finished_at
         )
 
     @staticmethod
@@ -62,20 +62,20 @@ class JobDownloadControlDTO:
         return [JobDownloadControlDTO.from_entity(e) for e in entities]
 
     @staticmethod
-    def to_entity(dto: "JobDownloadControlDTO") -> JobDownloadControl:
+    def to_entity(self) -> JobDownloadControl:
         return JobDownloadControl(
-            job_id=dto.job_id,
-            job_type=dto.job_type,
-            source_name=dto.source_name,
-            status=dto.status,
-            error_message=dto.error_message,
-            last_page=dto.last_page,
-            total_pages=dto.total_pages,
-            attempts=dto.attempts,
-            created_at=dto.created_at,
-            updated_at=dto.updated_at,
-            started_at=dto.started_at,
-            finished_at=dto.finished_at
+            job_id=self.job_id,
+            job_type=self.job_type,
+            source_name=self.source_name,
+            status=self.status,
+            error_message=self.error_message,
+            last_page=self.last_page,
+            total_pages=self.total_pages,
+            attempts=self.attempts,
+            created_at=self.created_at,
+            updated_at=self.updated_at,
+            started_at=self.started_at,
+            finished_at=self.finished_at
         )
 
     def to_dict(self) -> dict:
