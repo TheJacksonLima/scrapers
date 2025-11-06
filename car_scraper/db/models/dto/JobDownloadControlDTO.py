@@ -13,8 +13,9 @@ class JobDownloadControlDTO:
     job_type: Optional[JobType] = None
     source_name: Optional[JobSource] = None
     status: Optional[JobStatus] = None
+    brand_id: int = 0
     error_message: str = ""
-    last_page: int = 0
+    last_page: int = 1
     total_pages: int = 0
     attempts: int = 0
     created_at: Optional[datetime] = None
@@ -28,6 +29,7 @@ class JobDownloadControlDTO:
             f"job_id={self.job_id}, "
             f"job_type={self.job_type}, "
             f"source_name={self.source_name}, "
+            f"brand_id={self.brand_id}, "
             f"status={self.status}, "
             f"error_message='{self.error_message}', "
             f"last_page={self.last_page}, "
@@ -41,41 +43,43 @@ class JobDownloadControlDTO:
         )
 
     @staticmethod
-    def from_entity(self) -> "JobDownloadControlDTO":
+    def to_dto(entity: JobDownloadControl) -> "JobDownloadControlDTO":
         return JobDownloadControlDTO(
-            job_id=self.job_id,
-            job_type=self.job_type,
-            source_name=self.source_name,
-            status=self.status,
-            error_message=self.error_message,
-            last_page=self.last_page,
-            total_pages=self.total_pages,
-            attempts=self.attempts,
-            created_at=self.created_at,
-            updated_at=self.updated_at,
-            started_at=self.started_at,
-            finished_at=self.finished_at
+            job_id=entity.job_id,
+            job_type=entity.job_type,
+            source_name=entity.source_name,
+            brand_id=entity.brand_id,
+            status=entity.status,
+            error_message=entity.error_message,
+            last_page=entity.last_page,
+            total_pages=entity.total_pages,
+            attempts=entity.attempts,
+            created_at=entity.created_at,
+            updated_at=entity.updated_at,
+            started_at=entity.started_at,
+            finished_at=entity.finished_at
         )
 
     @staticmethod
     def from_entity_list(entities: List[JobDownloadControl]) -> List["JobDownloadControlDTO"]:
-        return [JobDownloadControlDTO.from_entity(e) for e in entities]
+        return [JobDownloadControlDTO.to_dto(e) for e in entities]
 
     @staticmethod
-    def to_entity(self) -> JobDownloadControl:
+    def to_entity(dto : "JobDownloadControlDTO") -> JobDownloadControl:
         return JobDownloadControl(
-            job_id=self.job_id,
-            job_type=self.job_type,
-            source_name=self.source_name,
-            status=self.status,
-            error_message=self.error_message,
-            last_page=self.last_page,
-            total_pages=self.total_pages,
-            attempts=self.attempts,
-            created_at=self.created_at,
-            updated_at=self.updated_at,
-            started_at=self.started_at,
-            finished_at=self.finished_at
+            job_id=dto.job_id,
+            job_type=dto.job_type,
+            source_name=dto.source_name,
+            brand_id=dto.brand_id,
+            status=dto.status,
+            error_message=dto.error_message,
+            last_page=dto.last_page,
+            total_pages=dto.total_pages,
+            attempts=dto.attempts,
+            created_at=dto.created_at,
+            updated_at=dto.updated_at,
+            started_at=dto.started_at,
+            finished_at=dto.finished_at
         )
 
     def to_dict(self) -> dict:
@@ -84,6 +88,7 @@ class JobDownloadControlDTO:
             "job_type": self.job_type.name if self.job_type else None,
             "source_name": self.source_name.name if self.source_name else None,
             "status": self.status.name if self.status else None,
+            "brand_id": self.brand_id,
             "error_message": self.error_message,
             "last_page": self.last_page,
             "total_pages": self.total_pages,

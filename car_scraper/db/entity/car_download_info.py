@@ -1,10 +1,11 @@
 from sqlalchemy import String, Integer, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from car_scraper.db.models import Brand
+from car_scraper.db.entity.brand import Brand
 from car_scraper.db.entity.base import Base
 from car_scraper.db.entity.job_download_control import JobDownloadControl
-
+from car_scraper.db.models.enums.JobStatus import JobStatus
+from sqlalchemy import Integer, String, Enum as PgEnum
 
 class CarDownloadInfo(Base):
     __tablename__ = "car_download_info"
@@ -13,6 +14,7 @@ class CarDownloadInfo(Base):
     car_desc: Mapped[str] = mapped_column(String(255), nullable=False)
     page: Mapped[int] = mapped_column(Integer, nullable=False)
     image: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    status: Mapped[JobStatus] = mapped_column(PgEnum(JobStatus), nullable=False, default="")
 
     brand_id: Mapped[int] = mapped_column(
         Integer,

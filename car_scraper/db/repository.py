@@ -1,12 +1,16 @@
 import logging
+from datetime import datetime
 from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from car_scraper.db.entity import JobDownloadControl
-from car_scraper.db.models import CarDownloadInfo
+from car_scraper.db.entity.car_download_info import CarDownloadInfo
 from car_scraper.db.entity.brand import Brand
+from car_scraper.db.models.enums.JobStatus import JobStatus
+from car_scraper.db.models.enums.JobType import JobType
 from car_scraper.scrapers.scraper import BrandDTO
+from car_scraper.utils.human import show_sql
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +73,7 @@ class Repository:
                 changed = True
 
             if changed:
-                self.db.add(existing)
+                #self.db.add(existing)
                 self.db.commit()
                 self.db.refresh(existing)
                 logger.info(f"Updated existing ad: {existing.href}")
@@ -90,27 +94,30 @@ class Repository:
 
     def update_batch(self, batch: JobDownloadControl) -> JobDownloadControl | None:
         existing_batch = self.get_batch_by_job_id(batch.job_id)
-
         if existing_batch:
-            changed = False
+            existing_batch.status = batch.status
+            existing_batch.error_message = batch.error_message
+            existing_batch.last_page = batch.last_page
+            existing_batch.total_pages = batch.total_pages
+            existing_batch.attempts = batch.attempts
 
-            if existing_batch.last_page != batch.last_page:
-                existing_batch.last_page = batch.last_page
-                changed = True
+            if batch.status == JobStatus.COMPLETED:
+                existing_batch.finished_at = datetime.now()
 
-            if existing_batch.status != batch.status:
-                existing_batch.status = batch.status
-                changed = True
-
-            if existing_batch.attempts != batch.attempts:
-                existing_batch.attempts = batch.attempts
-                changed = True
-
-            if changed:
-                self.db.add(existing_batch)
-                self.db.commit()
-                self.db.refresh(existing_batch)
-                logger.info(f"Updated batch id: {existing_batch.job_id} to {existing_batch.status}")
-                return existing_batch
-
+            self.db.commit()
+            self.db.refresh(existing_batch)
+            logger.info(f"Updated batch id: {existing_batch.job_id}")
+            return existing_batch
         return None
+
+    def get_last_batch(self, brand: Brand, job_type: JobType) -> JobDownloadControl | None:
+        stmt = (
+            select(JobDownloadControl)
+            .where(
+                JobDownloadControl.brand_id == brand.id,
+                JobDownloadControl.job_type == job_type
+            )
+            .order_by(JobDownloadControl.created_at.desc())
+            .limit(1)
+        )
+        return self.db.execute(stmt).scalar_one_or_none()
