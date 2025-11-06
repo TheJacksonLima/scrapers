@@ -8,6 +8,7 @@ from playwright.sync_api import sync_playwright, Page, BrowserContext
 from car_scraper.scrapers.scraper import BaseScraper
 from car_scraper.utils.human import human_delay, human_scroll, human_scroll_to_bottom
 from car_scraper.utils.config import settings
+from car_scraper.db.models.enums.JobStatus import JobStatus
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +117,7 @@ class Webmotors_Scraper(BaseScraper):
             m = self._re_num.search(text)
             return int(m.group(1).replace(".", "")) if m else None
 
-    def get_cars_from_brand(self, brand: BrandDTO) -> list[CarDownloadInfoDTO]:
+    def get_cars_from_brand(self, brand: BrandDTO, job_id: int, page_num: int) -> list[CarDownloadInfoDTO]:
         if not brand.href:
             return []
 
@@ -146,10 +147,13 @@ class Webmotors_Scraper(BaseScraper):
                 if href and alt and src:
                     cars.append(
                         CarDownloadInfoDTO(
+                            job_id=job_id,
                             href=href,
                             car_desc=alt,
                             image=src,
-                            brand_id=brand.id if hasattr(brand, "id") else None
+                            brand_id=brand.id if hasattr(brand, "id") else None,
+                            status=JobStatus.PENDING,
+                            page=page_num
                         )
                     )
 

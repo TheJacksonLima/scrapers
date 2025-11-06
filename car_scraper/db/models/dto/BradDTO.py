@@ -1,6 +1,6 @@
 from typing import Optional
 from dataclasses import dataclass
-from car_scraper.db.models import Brand
+from car_scraper.db.entity.brand import Brand
 
 
 @dataclass
