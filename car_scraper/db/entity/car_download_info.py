@@ -1,6 +1,6 @@
-from sqlalchemy import String, Integer, ForeignKey
+from datetime import datetime
+from sqlalchemy import DateTime, func, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from car_scraper.db.entity.brand import Brand
 from car_scraper.db.entity.base import Base
 from car_scraper.db.entity.job_download_control import JobDownloadControl
@@ -15,6 +15,8 @@ class CarDownloadInfo(Base):
     page: Mapped[int] = mapped_column(Integer, nullable=False)
     image: Mapped[str | None] = mapped_column(String(500), nullable=True)
     status: Mapped[JobStatus] = mapped_column(PgEnum(JobStatus), nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), onupdate=func.now())
 
     brand_id: Mapped[int] = mapped_column(
         Integer,

@@ -13,6 +13,7 @@ from car_scraper.db.session import engine
 from car_scraper.scrapers.webmotors import Webmotors_Scraper
 from car_scraper.services.service import Service
 from car_scraper.utils.logging_config import setup_logging
+from car_scraper.utils.my_time_now import my_time_now
 
 logger = setup_logging()
 service = Service()
@@ -89,11 +90,11 @@ def get_ads_from_brand(brand: BrandDTO, batch_info: JobDownloadControlDTO):
 
         batch_info.status = JobStatus.COMPLETED
         batch_info.error_message = ""
-        batch_info.finished_at = func.now()
+        batch_info.finished_at = my_time_now()
 
     except Exception as e:
         batch_info.status = JobStatus.FAILED
-        batch_info.finished_at = func.now()
+        batch_info.finished_at = my_time_now()
         batch_info.error_message = f"{type(e).__name__}: {e}"[:500]
         batch_info.last_page = page_count
 
@@ -103,7 +104,7 @@ def get_ads_from_brand(brand: BrandDTO, batch_info: JobDownloadControlDTO):
 
 
 def get_brands(source: JobSource):
-    logger.info(f"Getting from brands")
+    logger.info(f"Getting ads from brands")
     batch_info = service.create_batch(source, JobType.BRAND_DOWNLOAD)
 
     try:
@@ -116,6 +117,40 @@ def get_brands(source: JobSource):
         batch_info.status = JobStatus.FAILED
         batch_info.error_message = f"{type(e).__name__}: {e}"[:500]
         logger.exception(f"Error while fetching brands from{source}")
+
+    finally:
+        service.update_batch(batch_info)
+
+
+def get_car_ads():
+    logger.info(f"Getting car ads")
+    l_car_ads = service.get_ads_to_download()
+
+    if (l_car_ads is None) or (len(l_car_ads)):
+        logger.info(f"No car ads found!")
+        return
+
+    l_car_ad_saved = []
+    car_ad_saved = []
+
+    batch_info = service.create_batch(JobType.CAR_INFO)
+    try:
+        for car_ad in l_car_ads:
+            car_ad_ret = web_motors.get_car_ad(car_ad)
+            if car_ad_ret is not None:
+                car_ad_saved = car_ad_saved + 1
+                l_car_ad_saved.append(car_ad_saved)
+
+        batch_info.status = JobStatus.COMPLETED
+        batch_info.message = ' '.join(l_car_ad_saved)
+        batch_info.finished_at = my_time_now()
+
+    except Exception as e:
+        batch_info.status = JobStatus.FAILED
+        batch_info.finished_at = my_time_now()
+        batch_info.error_message = f"{type(e).__name__}: {e}"[:500]
+        batch_info.message = ' '.join(l_car_ad_saved)
+        logger.exception(f"Error while fetching car ads on batch {batch_info.job_id}")
 
     finally:
         service.update_batch(batch_info)
@@ -136,9 +171,11 @@ def main():
     try:
         #get_brands()
         #update_total_ads_all_brands()
-        brand = service.get_brand('webmotors', 'Honda')
-        batch = init_batch(brand, JobType.CAR_DOWNLOAD_INFO)
-        get_ads_from_brand(brand, batch)
+
+        #brand = service.get_brand('webmotors', 'Honda')
+        #batch = init_batch(brand, JobType.CAR_DOWNLOAD_INFO)
+        #get_ads_from_brand(brand, batch)
+        get_car_ads()
     except Exception as e:
         logger.exception(f"Error executing scrapper {e}")
 
