@@ -126,9 +126,10 @@ class Repository:
         stmt = (
             select(CarDownloadInfo)
             .where(
-                JobDownloadControl.status == JobStatus.PENDING
+                CarDownloadInfo.status == JobStatus.PENDING
             )
-            .order_by(JobDownloadControl.created_at.desc())
+            .order_by(CarDownloadInfo.created_at.desc())
             .limit(50)
         )
-        return self.db.execute(stmt).scalar_one_or_none()
+        #show_sql(stmt)
+        return self.db.execute(stmt).scalars().all()

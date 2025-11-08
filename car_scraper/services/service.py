@@ -12,6 +12,7 @@ from car_scraper.db.models.enums.JobStatus import JobStatus
 from car_scraper.db.models.enums.JobType import JobType
 from car_scraper.db.repository import Repository
 from car_scraper.db.session import SessionLocal
+from car_scraper.utils.my_time_now import my_time_now
 
 
 class Service:
@@ -98,10 +99,10 @@ class Service:
     def _(self, brand: BrandDTO, job_type: JobType) -> JobDownloadControlDTO:
         batch = JobDownloadControl(
             job_type=job_type.value,
-            source_name=JobSource.WEBMOTORS,  #brand.source,
+            source_name=JobSource.WEBMOTORS,
             status=JobStatus.PENDING,
             error_message="",
-            updated_at=datetime.now(),
+            updated_at=my_time_now(),
             last_page=1,
             total_pages=math.ceil(brand.total_ads / 47),
             attempts=0,
@@ -115,12 +116,13 @@ class Service:
             return JobDownloadControlDTO.to_dto(ret)
 
     @create_batch.register
-    def _(self, source: str, job_type: JobType) -> JobDownloadControlDTO:
+    def _(self, source: JobSource, job_type: JobType) -> JobDownloadControlDTO:
         batch = JobDownloadControl(
             job_type=job_type.value,
             source_name=source,
             status=JobStatus.PENDING,
             error_message="",
+            updated_at=my_time_now(),
             last_page=1,
             total_pages=0,
             attempts=0

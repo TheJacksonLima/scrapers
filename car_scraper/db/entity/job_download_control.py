@@ -37,5 +37,5 @@ class JobDownloadControl(Base):
     brand_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("brands.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
     )

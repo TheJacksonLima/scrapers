@@ -126,14 +126,14 @@ def get_car_ads():
     logger.info(f"Getting car ads")
     l_car_ads = service.get_ads_to_download()
 
-    if (l_car_ads is None) or (len(l_car_ads)):
+    if (l_car_ads is None) or (len(l_car_ads) == 0):
         logger.info(f"No car ads found!")
         return
 
     l_car_ad_saved = []
     car_ad_saved = []
 
-    batch_info = service.create_batch(JobType.CAR_INFO)
+    batch_info = service.create_batch(JobSource.WEBMOTORS, JobType.CAR_INFO)
     try:
         for car_ad in l_car_ads:
             car_ad_ret = web_motors.get_car_ad(car_ad)
