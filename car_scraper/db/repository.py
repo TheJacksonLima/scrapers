@@ -4,7 +4,7 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from car_scraper.db.entity import JobDownloadControl
+from car_scraper.db.entity import JobDownloadControl, CarDownloadInfo
 from car_scraper.db.entity.car_download_info import CarDownloadInfo
 from car_scraper.db.entity.brand import Brand
 from car_scraper.db.models.enums.JobStatus import JobStatus
@@ -119,5 +119,16 @@ class Repository:
             )
             .order_by(JobDownloadControl.created_at.desc())
             .limit(1)
+        )
+        return self.db.execute(stmt).scalar_one_or_none()
+
+    def get_car_ads(self) -> List[CarDownloadInfo] | None:
+        stmt = (
+            select(CarDownloadInfo)
+            .where(
+                JobDownloadControl.status == JobStatus.PENDING
+            )
+            .order_by(JobDownloadControl.created_at.desc())
+            .limit(50)
         )
         return self.db.execute(stmt).scalar_one_or_none()

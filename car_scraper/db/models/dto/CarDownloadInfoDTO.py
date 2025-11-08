@@ -1,4 +1,5 @@
-from typing import List,Optional
+from datetime import datetime
+from typing import List, Optional
 from dataclasses import dataclass
 from car_scraper.db.entity import CarDownloadInfo
 from car_scraper.db.models.enums.JobStatus import JobStatus
@@ -13,7 +14,8 @@ class CarDownloadInfoDTO:
     status: JobStatus = JobStatus.PENDING
     image: Optional[str] = None
     brand_id: Optional[int] = None
-
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     def __str__(self):
         return f"Car({self.car_desc}) - href: {self.href}, image: {self.image or 'N/A'}"
@@ -27,7 +29,10 @@ class CarDownloadInfoDTO:
             car_desc=entity.car_desc,
             image=entity.image,
             brand_id=entity.brand_id,
-            status=entity.status
+            status=entity.status,
+            created_at=entity.created_at,
+            updated_at=entity.updated_at
+
         )
 
     @staticmethod
@@ -39,9 +44,12 @@ class CarDownloadInfoDTO:
             car_desc=dto.car_desc,
             image=dto.image,
             brand_id=dto.brand_id,
-            status=dto.status
+            status=dto.status,
+            created_at=dto.created_at,
+            updated_atd=dto.updated_at
 
         )
+
     @staticmethod
     def from_entity(entity: "CarDownloadInfo") -> "CarDownloadInfoDTO":
         return CarDownloadInfoDTO(
@@ -51,7 +59,9 @@ class CarDownloadInfoDTO:
             car_desc=entity.car_desc,
             image=entity.image,
             brand_id=entity.brand_id,
-            status = entity.status
+            status=entity.status,
+            created_at=entity.created_at,
+            updated_at=entity.updated_at
         )
 
     @staticmethod
@@ -67,4 +77,6 @@ class CarDownloadInfoDTO:
             "image": self.image,
             "brand_id": self.brand_id,
             "status": self.status,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
         }

@@ -22,7 +22,7 @@ def human_scroll_to_bottom(page, step=400):
 
     while True:
         page.evaluate(f"window.scrollBy(0, {step})")
-        time.sleep(random.uniform(0.1, 0.3))  # pausa entre os scrolls
+        time.sleep(random.uniform(0.1, 0.3))
         time.sleep(random.uniform(0.5, 1.0))
         new_height = page.evaluate("document.body.scrollHeight")
 

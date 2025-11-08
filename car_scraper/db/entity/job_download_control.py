@@ -18,6 +18,7 @@ class JobDownloadControl(Base):
     source_name: Mapped[JobSource] = mapped_column(PgEnum(JobSource), nullable=False, default="")
     status: Mapped[JobStatus] = mapped_column(PgEnum(JobStatus), nullable=False, default="")
     error_message: Mapped[str] = mapped_column(String(1000), nullable=True)
+    message: Mapped[str] = mapped_column(String(1000), nullable=True)
     last_page: Mapped[int] = mapped_column(Integer, nullable=False)
     total_pages: Mapped[int] = mapped_column(Integer, nullable=False)
     attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

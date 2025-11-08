@@ -34,6 +34,13 @@ class Service:
             return BrandDTO.to_dto(repo.get_ads_from_brand(brand_dto.get_entity()))
 
     @staticmethod
+    def get_ads_to_download() -> List[CarDownloadInfoDTO]:
+        with SessionLocal() as db:
+            repo = Repository(db)
+            ret = repo.get_car_ads()
+            return CarDownloadInfoDTO.from_entity_list(ret)
+
+    @staticmethod
     def save_brands(brand_dtos: List[BrandDTO]) -> List[Brand]:
         with SessionLocal() as db:
             repo = Repository(db)
@@ -66,7 +73,6 @@ class Service:
             db.commit()
             return list_car_ads_dto_out
 
-
     @staticmethod
     def get_last_batch_from_brand(brand: BrandDTO, job_type: JobType) -> JobDownloadControlDTO | None:
         with SessionLocal() as db:
@@ -84,7 +90,6 @@ class Service:
             db.commit()
             return JobDownloadControlDTO.to_dto(ret)
 
-
     @singledispatchmethod
     def create_batch(self, arg, job_type: JobType) -> JobDownloadControlDTO:
         raise NotImplementedError("Type not supported")
@@ -93,7 +98,7 @@ class Service:
     def _(self, brand: BrandDTO, job_type: JobType) -> JobDownloadControlDTO:
         batch = JobDownloadControl(
             job_type=job_type.value,
-            source_name=JobSource.WEBMOTORS,#brand.source,
+            source_name=JobSource.WEBMOTORS,  #brand.source,
             status=JobStatus.PENDING,
             error_message="",
             updated_at=datetime.now(),
