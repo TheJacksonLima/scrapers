@@ -46,7 +46,7 @@ class CarDownloadInfoDTO:
             brand_id=dto.brand_id,
             status=dto.status,
             created_at=dto.created_at,
-            updated_atd=dto.updated_at
+            updated_at=dto.updated_at
 
         )
 

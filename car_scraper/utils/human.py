@@ -1,7 +1,9 @@
 import random
+import os
 import time
 from bs4 import BeautifulSoup
 from sqlalchemy.dialects import postgresql
+from car_scraper.utils.config import PROJECT_ROOT
 
 
 def human_delay(a=0.8, b=2.0):
@@ -45,3 +47,12 @@ def show_sql(stmt):
     print("===== SQL =====")
     print(stmt.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
     print("==========")
+
+
+def save_page_to_file(content: str):
+    tmp_dir = PROJECT_ROOT / "tmp"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+
+    file_path = tmp_dir / "page.html"
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(content)

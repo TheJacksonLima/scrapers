@@ -62,17 +62,27 @@ class Service:
             return BrandDTO.to_dto(ret)
 
     @staticmethod
-    def save_car_download_info(list_car_ads_dto: List[CarDownloadInfoDTO]) -> List[CarDownloadInfoDTO]:
+    def update_car_download_info(dto: CarDownloadInfoDTO) -> CarDownloadInfoDTO:
+        with SessionLocal() as db:
+            repo = Repository(db)
+            entity = CarDownloadInfoDTO.to_entity(dto)
+            ret = repo.update_car_download_info(entity)
+            db.commit()
+            return ret
+
+    @staticmethod
+    def update_list_car_download_info(list_car_ads_dto: List[CarDownloadInfoDTO]) -> List[CarDownloadInfoDTO]:
         with SessionLocal() as db:
             repo = Repository(db)
             list_car_ads_dto_out = []
             for dto in list_car_ads_dto:
                 entity = CarDownloadInfoDTO.to_entity(dto)
-                repo.save_car_download_info(entity)
+                repo.update_car_download_info(entity)
                 list_car_ads_dto_out.append(CarDownloadInfoDTO.to_dto(entity))
 
             db.commit()
             return list_car_ads_dto_out
+
 
     @staticmethod
     def get_last_batch_from_brand(brand: BrandDTO, job_type: JobType) -> JobDownloadControlDTO | None:

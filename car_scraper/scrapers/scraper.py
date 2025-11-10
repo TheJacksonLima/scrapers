@@ -12,3 +12,7 @@ class BaseScraper(ABC):
     @abstractmethod
     def get_cars_from_brand(self, brand: BrandDTO) -> list[CarDownloadInfoDTO]:
         pass
+
+    @abstractmethod
+    def get_car_ad(self, car_info: CarDownloadInfoDTO) -> list[CarDownloadInfoDTO]:
+        pass
