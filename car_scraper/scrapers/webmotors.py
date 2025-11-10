@@ -2,26 +2,29 @@ import logging
 import re
 from car_scraper.db.models.dto.CarDownloadInfoDTO import CarDownloadInfoDTO
 from car_scraper.db.models.dto.BradDTO import BrandDTO
+from car_scraper.db.models.dto.CarAdInfoDTO import CarAdInfoDTO
 from contextlib import contextmanager
 from typing import Iterator, List, Optional
 from playwright.sync_api import sync_playwright, Page, BrowserContext
 from car_scraper.scrapers.scraper import BaseScraper
-from car_scraper.utils.human import human_delay, human_scroll, human_scroll_to_bottom
+from car_scraper.utils.human import human_delay, human_scroll, human_scroll_to_bottom, save_page_to_file, show_html
 from car_scraper.utils.config import settings
 from car_scraper.db.models.enums.JobStatus import JobStatus
 
 logger = logging.getLogger(__name__)
 
-# =========================
-# Constantes (seletores/tempo)
-# =========================
 BTN_BRANDS = "button.filters-make-select-picker_Button__2ESw5"
 LI_BRAND = ".filters-make-select-list_BodyListItem__XTOEv"
 MAIN_READY = "main.search-result_Container__zDYhq a[href] h2"
+MAIN_AD_READY = "main"
 DIV_INNER = "div._Inner_nv1r7_20"
 SKELETON = "[data-testid='skeleton-0']"
 TOTAL_ADS = 'p[data-qa="research_container"]'
-
+AD_DETAILS = "VehicleBasicInformation"
+STATUS_HEADER = "h1.StatusHeader__header__title"
+VENDIDO = "Veeeennndeeeeuuu"
+#VEHICLE_DETAILS = "InformationVehicleDetails"
+VEHICLE_DETAILS = "VehicleCharacteristic"
 WAIT_SHORT = 5_000
 WAIT_STD = 20_000
 
@@ -158,3 +161,76 @@ class Webmotors_Scraper(BaseScraper):
                     )
 
         return cars
+
+    def is_ad_sold(self, href: str) -> bool:
+        with self._page(href) as page:
+            try:
+                page.wait_for_selector(STATUS_HEADER, timeout=WAIT_SHORT)
+                text = page.inner_text(STATUS_HEADER)
+
+                return VENDIDO in text
+            except Exception:
+                return False
+
+    def extract_ad_info(self, items: list[str]) -> CarAdInfoDTO:
+        car_ad_info = CarAdInfoDTO()
+        for raw in items:
+            logger.info(f"{raw}")
+
+            if "\n" in raw:
+                key, value = raw.strip().split("\n", 1)
+                key = key.strip()
+                value = value.strip()
+            else:
+                key = "Optional"
+                value = raw.strip()
+
+            match key:
+                case "Cidade":
+                    car_ad_info.city = value
+                case "Ano":
+                    try:
+                        car_ad_info.year = int(value)
+                    except ValueError:
+                        pass
+                case "KM":
+                    try:
+                        car_ad_info.km = int(value.replace(".", "").replace(" km", "").strip())
+                    except ValueError:
+                        pass
+                case "Câmbio":
+                    car_ad_info.transmission = value
+                case "Carroceria":
+                    car_ad_info.type = value
+                case "Cor":
+                    car_ad_info.color = value
+                case "Aceita troca":
+                    car_ad_info.trade_in = value.lower() == "sim"
+                case "Único dono":
+                    car_ad_info.status = value.lower() == "sim"
+                case "IPVA pago":
+                    car_ad_info.ipva = value.lower() == "sim"
+                case "Licenciado":
+                    car_ad_info.license = value.lower() == "sim"
+                case "Optional":
+                    if car_ad_info.items is None:
+                        car_ad_info.items = []
+                    car_ad_info.items.append(value)
+
+        return car_ad_info
+
+    def get_car_ad(self, car_info: CarDownloadInfoDTO) -> CarAdInfoDTO | None:
+        if not car_info.href:
+            return None
+
+        logger.info(f"Getting adds from: {car_info.href}")
+        with self._page(car_info.href) as page:
+            page.wait_for_selector(MAIN_AD_READY, timeout=WAIT_STD)
+            human_scroll_to_bottom(page)
+            ad_details = page.locator("main ul >> li")
+            items = ad_details.all_inner_texts()
+            ad_info = self.extract_ad_info(items)
+            logger.info(f"{ad_info}")
+
+            return ad_info
+

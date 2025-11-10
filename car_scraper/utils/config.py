@@ -1,9 +1,8 @@
 from decouple import Config, RepositoryEnv
 from pathlib import Path
-import os
 
-basePath = Path(__file__).parent.parent
-env_path = basePath / "application.properties"
+PROJECT_ROOT = Path(__file__).parent.parent
+env_path = PROJECT_ROOT / "application.properties"
 config = Config(repository=RepositoryEnv(str(env_path)))
 
 
@@ -21,9 +20,10 @@ class Settings:
     HEADLESS: bool = config("HEADLESS", cast=bool, default=False)
     TIMEOUT: int = config("TIMEOUT", cast=int, default=20000)
 
-    LOG_DIR = config("LOG_DIR", default=str(basePath / "logs"))
-    LOG_FILE = config("LOG_FILE", default="car_scraper.log")
+    LOG_DIR = config("LOG_DIR", default=str(PROJECT_ROOT / "tmp/logs"))
+    LOG_FILE = config("LOG_FILE", default=str(Path(LOG_DIR) / "car_scraper.log"))
     LOG_LEVEL = config("LOG_LEVEL", default="INFO").upper()
+
 
 
 settings = Settings()

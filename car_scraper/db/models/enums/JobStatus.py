@@ -5,3 +5,4 @@ class JobStatus(enum.Enum):
     RUNNING = "RUNNING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
+    MISSING_AD = "MISSING_AD"

@@ -2,6 +2,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 from car_scraper.utils.config import settings
 
+
 def setup_logging(level=logging.INFO):
     logger = logging.getLogger()
     logger.setLevel(level)

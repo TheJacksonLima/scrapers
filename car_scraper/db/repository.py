@@ -58,22 +58,28 @@ class Repository:
         stmt = select(CarDownloadInfo).where(CarDownloadInfo.href == href)
         return self.db.execute(stmt).scalar_one_or_none()
 
-    def save_car_download_info(self, car_download_info: CarDownloadInfo):
+    def update_car_download_info(self, car_download_info: CarDownloadInfo):
         existing = self.get_car_download_info_by_href(car_download_info.href)
         if existing:
             changed = False
+
             if existing.car_desc != car_download_info.car_desc:
                 existing.car_desc = car_download_info.car_desc
                 changed = True
+
             if existing.image != car_download_info.image:
                 existing.image = car_download_info.image
                 changed = True
+
             if existing.brand_id != car_download_info.brand_id:
                 existing.brand_id = car_download_info.brand_id
                 changed = True
 
+            if existing.status != car_download_info.status:
+                existing.status = car_download_info.status
+                changed = True
+
             if changed:
-                #self.db.add(existing)
                 self.db.commit()
                 self.db.refresh(existing)
                 logger.info(f"Updated existing ad: {existing.href}")
