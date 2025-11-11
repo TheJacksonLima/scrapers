@@ -1,11 +1,15 @@
 from datetime import datetime
 from sqlalchemy import DateTime, func, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from car_scraper.db.entity.brand import Brand
-from car_scraper.db.entity.base import Base
-from car_scraper.db.entity.job_download_control import JobDownloadControl
 from car_scraper.db.models.enums.JobStatus import JobStatus
 from sqlalchemy import Integer, String, Enum as PgEnum
+from car_scraper.db.entity.base import Base
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from car_scraper.db.entity.job_download_control import JobDownloadControl
+    from car_scraper.db.entity.brand import Brand
+
 
 class CarDownloadInfo(Base):
     __tablename__ = "car_download_info"
@@ -32,13 +36,10 @@ class CarDownloadInfo(Base):
 
     brand: Mapped["Brand"] = relationship(
         "Brand",
-        back_populates="cars",
+        back_populates="downloaded_cars",
     )
 
-    job: Mapped["JobDownloadControl"] = relationship(
-        "JobDownloadControl",
-        back_populates="cars"
-    )
+    job: Mapped["JobDownloadControl"] = relationship("JobDownloadControl", back_populates="downloaded_cars")
 
     def __repr__(self):
         return f"<CarDownloadInfo(href='{self.href}', car_desc='{self.car_desc}', image={self.image})>"

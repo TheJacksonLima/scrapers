@@ -3,12 +3,14 @@ import re
 from car_scraper.db.models.dto.CarDownloadInfoDTO import CarDownloadInfoDTO
 from car_scraper.db.models.dto.BradDTO import BrandDTO
 from car_scraper.db.models.dto.CarAdInfoDTO import CarAdInfoDTO
+from car_scraper.db.models.dto.SellerInfoDTO import SellerInfoDTO
 from contextlib import contextmanager
 from typing import Iterator, List, Optional
 from playwright.sync_api import sync_playwright, Page, BrowserContext
 from car_scraper.scrapers.scraper import BaseScraper
 from car_scraper.utils.human import human_delay, human_scroll, human_scroll_to_bottom, save_page_to_file, show_html
 from car_scraper.utils.config import settings
+from car_scraper.utils.my_time_now import my_time_now
 from car_scraper.db.models.enums.JobStatus import JobStatus
 
 logger = logging.getLogger(__name__)
@@ -21,10 +23,19 @@ DIV_INNER = "div._Inner_nv1r7_20"
 SKELETON = "[data-testid='skeleton-0']"
 TOTAL_ADS = 'p[data-qa="research_container"]'
 AD_DETAILS = "VehicleBasicInformation"
+AD_IMAGES = "img.DetailCarousel__container__items__photo"
 STATUS_HEADER = "h1.StatusHeader__header__title"
 VENDIDO = "Veeeennndeeeeuuu"
-#VEHICLE_DETAILS = "InformationVehicleDetails"
 VEHICLE_DETAILS = "VehicleCharacteristic"
+
+LOC_SELLER_NAME = "#VehicleSellerInformationName"
+LOC_SELLER_LOCATION = "#VehicleSellerInformationState"
+LOC_SELLER_PHONE = "#VehicleSellerInformationPhone_"
+LOC_SELLER_PHONE_DDD = "#VehicleSellerInformationPhone_ small"
+LOC_SELLER_CODE = ".CardSeller__code__connection__number"
+LOC_SELLER_STOCK = "#VehicleSellerInformationStock"
+
+
 WAIT_SHORT = 5_000
 WAIT_STD = 20_000
 
@@ -175,8 +186,6 @@ class Webmotors_Scraper(BaseScraper):
     def extract_ad_info(self, items: list[str]) -> CarAdInfoDTO:
         car_ad_info = CarAdInfoDTO()
         for raw in items:
-            logger.info(f"{raw}")
-
             if "\n" in raw:
                 key, value = raw.strip().split("\n", 1)
                 key = key.strip()
@@ -219,6 +228,28 @@ class Webmotors_Scraper(BaseScraper):
 
         return car_ad_info
 
+    def get_seller_info(self, page) -> SellerInfoDTO:
+        page.wait_for_selector(LOC_SELLER_NAME)
+
+        seller_name = page.locator(LOC_SELLER_NAME).text_content()
+        seller_location = page.locator(LOC_SELLER_LOCATION).text_content()
+        phone_num = page.locator(LOC_SELLER_PHONE).text_content().strip()
+        contact_code = page.locator(LOC_SELLER_CODE).text_content()
+        stock_path = page.locator(LOC_SELLER_STOCK).get_attribute("href")
+
+        stock_url = f"https://www.webmotors.com.br{stock_path}" if stock_path else None
+
+        seller_dto = SellerInfoDTO(
+            name=seller_name,
+            location=seller_location,
+            phone=phone_num,
+            contact_code=contact_code,
+            stock_url=stock_url,
+        )
+
+        logger.debug(f" Seller Info: {seller_dto}")
+
+        return seller_dto
     def get_car_ad(self, car_info: CarDownloadInfoDTO) -> CarAdInfoDTO | None:
         if not car_info.href:
             return None
@@ -230,7 +261,24 @@ class Webmotors_Scraper(BaseScraper):
             ad_details = page.locator("main ul >> li")
             items = ad_details.all_inner_texts()
             ad_info = self.extract_ad_info(items)
-            logger.info(f"{ad_info}")
 
+            ad_images = page.query_selector_all(AD_IMAGES)
+            ad_info.ad_images_links = []
+            for image_src in [img.get_attribute("src") for img in ad_images]:
+                ad_info.ad_images_links.append(image_src)
+
+            basicInformation = page.locator("#VehicleBasicInformationTitle")
+            ad_info.name = basicInformation.text_content()
+            ad_info.desc = page.locator("#VehicleBasicInformationDescription").text_content()
+
+            ad_info.ad_link = car_info.href
+            ad_info.qty_images = len(ad_info.ad_images_links) + 1
+            ad_info.brand_id = car_info.brand_id
+            ad_info.job_id = car_info.job_id
+            ad_info.created_at = my_time_now()
+            ad_info.updated_at = my_time_now()
+
+            self.get_seller_info(page)
+
+            logger.debug(f"{ad_info}")
             return ad_info
-
