@@ -3,6 +3,12 @@ from sqlalchemy import String, DateTime, Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from car_scraper.db.entity.base import Base
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from car_scraper.db.entity import CarDownloadInfo
+    from car_scraper.db.entity.car_ad_info import CarAdInfo
+
+
 class Brand(Base):
     __tablename__ = "brands"
 
@@ -11,7 +17,6 @@ class Brand(Base):
     source: Mapped[str] = mapped_column(String(32), nullable=False)
     url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     total_ads: Mapped[int | None] = mapped_column(Integer, nullable=True)
-
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -24,8 +29,14 @@ class Brand(Base):
         nullable=False,
     )
 
-    cars: Mapped[list["CarDownloadInfo"]] = relationship(
+    downloaded_cars: Mapped[list["CarDownloadInfo"]] = relationship(
         "CarDownloadInfo",
+        back_populates="brand",
+        cascade="all, delete-orphan",
+    )
+
+    detailed_ads: Mapped[list["CarAdInfo"]] = relationship(
+        "CarAdInfo",
         back_populates="brand",
         cascade="all, delete-orphan",
     )

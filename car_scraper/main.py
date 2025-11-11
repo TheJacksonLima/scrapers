@@ -136,14 +136,14 @@ def get_car_ads():
     batch_info = service.create_batch(JobSource.WEBMOTORS, JobType.CAR_INFO)
     try:
         for car_ad in l_car_ads:
-            """
             if web_motors.is_ad_sold(car_ad.href):
                 logger.info(f"{car_ad.car_desc} is not available")
                 car_ad.status = JobStatus.MISSING_AD
                 service.update_car_download_info(car_ad)
                 continue
-                """
+
             car_ad_ret = web_motors.get_car_ad(car_ad)
+
             exit(-1)
             if car_ad_ret is not None:
                 car_ad_saved = car_ad_saved + 1

@@ -1,8 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional
-
-from car_scraper.db.entity.car_download_info import CarDownloadInfo
+from car_scraper.db.entity.car_ad_info import CarAdInfo
 
 
 @dataclass
@@ -13,7 +12,6 @@ class CarAdInfoDTO:
     desc: Optional[str] = None
     ad_images_links: List[str] = None
     qty_images: Optional[int] = None
-
     city: str = ""
     year: Optional[int] = None
     km: Optional[int] = None
@@ -25,6 +23,7 @@ class CarAdInfoDTO:
     ipva: bool = False
     license: bool = False
     items: List[str] = None
+    seller_id: Optional[int] = None
 
     brand_id: int = 0
     job_id: int = 0
@@ -35,7 +34,7 @@ class CarAdInfoDTO:
         return f"{self.to_dict()}"
 
     @staticmethod
-    def from_entity(entity: CarDownloadInfo) -> "CarAdInfoDTO":
+    def from_entity(entity: CarAdInfo) -> "CarAdInfoDTO":
         return CarAdInfoDTO(
             id=entity.id,
             ad_link=entity.ad_link,
@@ -58,15 +57,16 @@ class CarAdInfoDTO:
             job_id=entity.job_id,
             created_at=entity.created_at,
             updated_at=entity.updated_at,
+            seller_id=entity.seller_id
         )
 
     @staticmethod
-    def from_entity_list(entities: List[CarDownloadInfo]) -> List["CarAdInfoDTO"]:
+    def from_entity_list(entities: List[CarAdInfo]) -> List["CarAdInfoDTO"]:
         return [CarAdInfoDTO.from_entity(e) for e in entities]
 
     @staticmethod
-    def to_entity(dto: "CarAdInfoDTO") -> CarDownloadInfo:
-        return CarDownloadInfo(
+    def to_entity(dto: "CarAdInfoDTO") -> CarAdInfo:
+        return CarAdInfo(
             id=dto.id,
             ad_link=dto.ad_link,
             name=dto.name,
@@ -88,6 +88,7 @@ class CarAdInfoDTO:
             job_id=dto.job_id,
             created_at=dto.created_at,
             updated_at=dto.updated_at,
+            seller_id=dto.seller_id
         )
 
     def to_dict(self) -> dict:

@@ -3,12 +3,16 @@ from datetime import datetime
 from sqlalchemy import DateTime, func, ForeignKey
 from sqlalchemy import Integer, String, Enum as PgEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from car_scraper.db.entity.base import Base
 from car_scraper.db.models.enums.JobSource import JobSource
 from car_scraper.db.models.enums.JobStatus import JobStatus
 from car_scraper.db.models.enums.JobType import JobType
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from car_scraper.db.entity.car_download_info import CarDownloadInfo
+    from car_scraper.db.entity.car_ad_info import CarAdInfo
+    from car_scraper.db.entity.seller_info import SellerInfo
 
 class JobDownloadControl(Base):
     __tablename__ = "job_download_control"
@@ -28,14 +32,16 @@ class JobDownloadControl(Base):
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    cars: Mapped[list["CarDownloadInfo"]] = relationship(
-        "CarDownloadInfo",
-        back_populates="job",
-        cascade="all, delete-orphan"
+    brand_id: Mapped[int] = mapped_column(Integer, ForeignKey("brands.id", ondelete="CASCADE"), nullable=True)
+
+    downloaded_cars: Mapped[list["CarDownloadInfo"]] = relationship(
+        "CarDownloadInfo", back_populates="job", cascade="all, delete-orphan"
     )
 
-    brand_id: Mapped[int] = mapped_column(
-        Integer,
-        ForeignKey("brands.id", ondelete="CASCADE"),
-        nullable=True,
+    detailed_ads: Mapped[list["CarAdInfo"]] = relationship(
+        "CarAdInfo", back_populates="job", cascade="all, delete-orphan"
+    )
+
+    sellers: Mapped[list["SellerInfo"]] = relationship(
+        "SellerInfo", back_populates="job", cascade="all, delete-orphan"
     )

@@ -4,8 +4,11 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.mutable import MutableList
 from car_scraper.db.entity.base import Base
-from car_scraper.db.entity.brand import Brand
-from car_scraper.db.entity.job_download_control import JobDownloadControl
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from car_scraper.db.entity import Brand, JobDownloadControl
+    from car_scraper.db.entity.seller_info import SellerInfo
 
 
 class CarAdInfo(Base):
@@ -20,7 +23,6 @@ class CarAdInfo(Base):
         MutableList.as_mutable(ARRAY(String)), nullable=False, default=list
     )
     qty_images: Mapped[int] = mapped_column(Integer, nullable=True)
-
     city: Mapped[str] = mapped_column(String(100), nullable=True)
     year: Mapped[int] = mapped_column(Integer, nullable=True)
     km: Mapped[int] = mapped_column(Integer, nullable=True)
@@ -31,7 +33,6 @@ class CarAdInfo(Base):
     status: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     ipva: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     license: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-
     items: Mapped[list[str]] = mapped_column(
         MutableList.as_mutable(ARRAY(String)), nullable=False, default=list
     )
@@ -43,22 +44,19 @@ class CarAdInfo(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
-    brand_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("brands.id", ondelete="CASCADE"), nullable=False
-    )
+    brand_id: Mapped[int] = mapped_column(Integer, ForeignKey("brands.id", ondelete="CASCADE"), nullable=False)
+    job_id: Mapped[int] = mapped_column(Integer, ForeignKey("job_download_control.job_id", ondelete="CASCADE"), nullable=False)
+    seller_id: Mapped[int] = mapped_column(Integer, ForeignKey("seller_info.id", ondelete="SET NULL"), nullable=True)
 
-    job_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("job_download_control.job_id", ondelete="CASCADE"), nullable=False
-    )
-
-    brand: Mapped["Brand"] = relationship("Brand", back_populates="cars")
-    job: Mapped["JobDownloadControl"] = relationship("JobDownloadControl", back_populates="cars")
+    # relationships
+    brand: Mapped["Brand"] = relationship("Brand", back_populates="detailed_ads")
+    job: Mapped["JobDownloadControl"] = relationship("JobDownloadControl", back_populates="detailed_ads")
+    seller: Mapped["SellerInfo"] = relationship("SellerInfo", back_populates="ads")
 
     def __repr__(self):
         return (
-            f"<CarDownloadInfo(city='{self.city}', year={self.year}, km={self.km}, "
+            f"<CarAdInfo(city='{self.city}', year={self.year}, km={self.km}, "
             f"transmission='{self.transmission}', type='{self.type}', color='{self.color}', "
-            f"trade_in={self.trade_in}, ipva={self.ipva}, license={self.license}, "
             f"brand_id={self.brand_id}, job_id={self.job_id})>"
         )
 
