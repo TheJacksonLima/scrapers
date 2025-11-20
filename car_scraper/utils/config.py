@@ -14,6 +14,9 @@ class Settings:
     ICARROS_URL: str = config("ICARROS_URL", default="https://www.icarros.com.br")
     OLX_AUTO_URL: str = config("OLX_AUTO_URL", default="https://www.olx.com.br/autos")
 
+    #Execution parameters
+    MAX_ADS_TO_PROCESS: str = config("MAX_ADS_TO_PROCESS", default="50")
+
     # Database connection
     DATABASE_URL: str = config("DATABASE_URL", default="")
 

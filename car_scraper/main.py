@@ -123,6 +123,9 @@ def get_brands(source: JobSource):
 
 
 def get_car_ads():
+    l_ads_and_sellers = []
+    ads_counter = 0
+
     logger.info(f"Getting car ads")
     l_car_ads = service.get_ads_to_download()
 
@@ -130,10 +133,8 @@ def get_car_ads():
         logger.info(f"No car ads found!")
         return
 
-    l_car_ad_saved = []
-    car_ad_saved = []
-
     batch_info = service.create_batch(JobSource.WEBMOTORS, JobType.CAR_INFO)
+
     try:
         for car_ad in l_car_ads:
             if web_motors.is_ad_sold(car_ad.href):
@@ -142,22 +143,22 @@ def get_car_ads():
                 service.update_car_download_info(car_ad)
                 continue
 
-            car_ad_ret = web_motors.get_car_ad(car_ad)
+            ad_info, seller = web_motors.get_car_ad(car_ad)
+            seller.job_id = batch_info.job_id
 
-            exit(-1)
-            if car_ad_ret is not None:
-                car_ad_saved = car_ad_saved + 1
-                l_car_ad_saved.append(car_ad_saved)
+            if ad_info is not None:
+                ads_counter = ads_counter + 1
+                l_ads_and_sellers.append((ad_info, seller))
+
+        service.save_or_update_ads_and_sellers(l_ads_and_sellers)
 
         batch_info.status = JobStatus.COMPLETED
-        batch_info.message = ' '.join(l_car_ad_saved)
         batch_info.finished_at = my_time_now()
 
     except Exception as e:
         batch_info.status = JobStatus.FAILED
         batch_info.finished_at = my_time_now()
         batch_info.error_message = f"{type(e).__name__}: {e}"[:500]
-        batch_info.message = ' '.join(l_car_ad_saved)
         logger.exception(f"Error while fetching car ads on batch {batch_info.job_id}")
 
     finally:

@@ -1,18 +1,21 @@
 import math
 from functools import singledispatchmethod
-from typing import List
+from typing import List, Tuple
 from datetime import datetime
 from car_scraper.db.entity import JobDownloadControl
 from car_scraper.db.entity.brand import Brand
 from car_scraper.db.models.dto.BradDTO import BrandDTO
+from car_scraper.db.models.dto.CarAdInfoDTO import CarAdInfoDTO
 from car_scraper.db.models.dto.CarDownloadInfoDTO import CarDownloadInfoDTO
 from car_scraper.db.models.dto.JobDownloadControlDTO import JobDownloadControlDTO
+from car_scraper.db.models.dto.SellerInfoDTO import SellerInfoDTO
 from car_scraper.db.models.enums.JobSource import JobSource
 from car_scraper.db.models.enums.JobStatus import JobStatus
 from car_scraper.db.models.enums.JobType import JobType
 from car_scraper.db.repository import Repository
 from car_scraper.db.session import SessionLocal
 from car_scraper.utils.my_time_now import my_time_now
+from car_scraper.utils.config import settings
 
 
 class Service:
@@ -38,7 +41,7 @@ class Service:
     def get_ads_to_download() -> List[CarDownloadInfoDTO]:
         with SessionLocal() as db:
             repo = Repository(db)
-            ret = repo.get_car_ads()
+            ret = repo.get_car_ads(settings.MAX_ADS_TO_PROCESS)
             return CarDownloadInfoDTO.from_entity_list(ret)
 
     @staticmethod
@@ -82,7 +85,6 @@ class Service:
 
             db.commit()
             return list_car_ads_dto_out
-
 
     @staticmethod
     def get_last_batch_from_brand(brand: BrandDTO, job_type: JobType) -> JobDownloadControlDTO | None:
@@ -143,3 +145,21 @@ class Service:
             ret = repo.create_batch(batch)
             db.commit()
             return JobDownloadControlDTO.to_dto(ret)
+
+    @staticmethod
+    def save_or_update_ads_and_sellers(l_ads_and_sellers: List[Tuple[CarAdInfoDTO, SellerInfoDTO]]) -> List[Tuple[CarAdInfoDTO, SellerInfoDTO]]:
+        with SessionLocal() as db:
+            repo = Repository(db)
+            l_ads_and_sellers_out = []
+            for ad_info_dto, seller_dto in l_ads_and_sellers:
+                seller_entity = SellerInfoDTO.to_entity(seller_dto)
+                seller_saved = repo.save_or_update_seller(seller_entity)
+
+                ad_info_entity = CarAdInfoDTO.to_entity(ad_info_dto)
+                ad_info_entity.seller_id = seller_saved.id
+                ad_saved = repo.save_or_update_car_ad_info(ad_info_entity)
+
+                l_ads_and_sellers_out.append((CarAdInfoDTO.to_dto(ad_saved), SellerInfoDTO.to_dto(seller_saved)))
+
+            db.commit()
+            return l_ads_and_sellers_out
