@@ -34,7 +34,7 @@ class CarAdInfoDTO:
         return f"{self.to_dict()}"
 
     @staticmethod
-    def from_entity(entity: CarAdInfo) -> "CarAdInfoDTO":
+    def to_dto(entity: CarAdInfo) -> "CarAdInfoDTO":
         return CarAdInfoDTO(
             id=entity.id,
             ad_link=entity.ad_link,

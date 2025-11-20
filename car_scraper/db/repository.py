@@ -1,16 +1,20 @@
 import logging
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Sequence
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from car_scraper.db.entity import JobDownloadControl, CarDownloadInfo
+from car_scraper.db.entity.car_ad_info import CarAdInfo
 from car_scraper.db.entity.car_download_info import CarDownloadInfo
 from car_scraper.db.entity.brand import Brand
+from car_scraper.db.entity.seller_info import SellerInfo
 from car_scraper.db.models.enums.JobStatus import JobStatus
 from car_scraper.db.models.enums.JobType import JobType
 from car_scraper.scrapers.scraper import BrandDTO
 from car_scraper.utils.human import show_sql
+from sqlalchemy import and_
+from car_scraper.utils.my_time_now import my_time_now
 
 logger = logging.getLogger(__name__)
 
@@ -128,14 +132,90 @@ class Repository:
         )
         return self.db.execute(stmt).scalar_one_or_none()
 
-    def get_car_ads(self) -> List[CarDownloadInfo] | None:
+    def get_car_ads(self, max: int) -> Sequence[CarDownloadInfo]:
         stmt = (
             select(CarDownloadInfo)
             .where(
                 CarDownloadInfo.status == JobStatus.PENDING
             )
             .order_by(CarDownloadInfo.created_at.desc())
-            .limit(50)
+            .limit(max)
         )
         #show_sql(stmt)
         return self.db.execute(stmt).scalars().all()
+
+    def get_ad_by_link(self,  ad_info: CarAdInfo) -> CarAdInfo | None:
+        stmt = select(CarAdInfo).where(CarAdInfo.ad_link == ad_info.ad_link)
+        return self.db.execute(stmt).scalar_one_or_none()
+
+    def save_or_update_car_ad_info(self, ad_info: CarAdInfo) -> CarAdInfo | None:
+        existing_ad = self.get_ad_by_link(ad_info.ad_link)
+        if existing_ad:
+            existing_ad.name = ad_info.name
+            existing_ad.desc = ad_info.desc
+            existing_ad.ad_images_links = ad_info.ad_images_links or []
+            existing_ad.qty_images = ad_info.qty_images
+            existing_ad.city = ad_info.city
+            existing_ad.year = ad_info.year
+            existing_ad.km = ad_info.km
+            existing_ad.transmission = ad_info.transmission
+            existing_ad.type = ad_info.type
+            existing_ad.color = ad_info.color
+            existing_ad.trade_in = ad_info.trade_in
+            existing_ad.status = ad_info.status
+            existing_ad.ipva = ad_info.ipva
+            existing_ad.license = ad_info.license
+            existing_ad.items = ad_info.items or []
+            existing_ad.brand_id = ad_info.brand_id
+            existing_ad.job_id = ad_info.job_id
+            existing_ad.updated_at = ad_info.updated_at or my_time_now()
+
+            if ad_info.seller_id is not None:
+                existing_ad.seller_id = ad_info.seller_id
+
+            self.db.commit()
+            self.db.refresh(existing_ad)
+            return self.get_ad_by_link(existing_ad)
+
+        else:
+            ad_info.created_at = ad_info.created_at or my_time_now()
+            ad_info.updated_at = ad_info.updated_at or my_time_now()
+
+            self.db.add(ad_info)
+            self.db.commit()
+            self.db.refresh(ad_info)
+            logger.info(f"Inserted new ad with batch id: {ad_info.job_id}")
+            return self.get_ad_by_link(ad_info)
+
+    def get_seller_by_name_and_location(self, seller) -> SellerInfo | None:
+        stmt = (
+            select(SellerInfo)
+            .where(
+                SellerInfo.name == seller.name,
+                SellerInfo.location == seller.location
+            )
+        )
+        return self.db.execute(stmt).scalar_one_or_none()
+
+    def save_or_update_seller(self, seller: SellerInfo) -> SellerInfo:
+        existing_seller = self.get_seller_by_name_and_location(seller)
+
+        if existing_seller:
+            existing_seller.phone = seller.phone
+            existing_seller.contact_code = seller.contact_code
+            existing_seller.stock_url = seller.stock_url
+            existing_seller.job_id = seller.job_id
+            existing_seller.updated_at = seller.updated_at or my_time_now()
+
+            self.db.commit()
+            self.db.refresh(existing_seller)
+            return self.get_seller_by_name_and_location(existing_seller)
+
+        else:
+            seller.created_at = seller.created_at or my_time_now()
+            seller.updated_at = seller.updated_at or my_time_now()
+
+            self.db.add(seller)
+            self.db.commit()
+            self.db.refresh(seller)
+            return self.get_seller_by_name_and_location(seller)

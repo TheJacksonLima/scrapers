@@ -1,14 +1,17 @@
 from datetime import datetime
-from sqlalchemy import DateTime, func, Integer, String, ForeignKey
+from sqlalchemy import DateTime, func, Integer, String, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from car_scraper.db.entity.base import Base
 
 from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
     from car_scraper.db.entity.job_download_control import JobDownloadControl
 
+
 class SellerInfo(Base):
     __tablename__ = "seller_info"
+    __table_args__ = (UniqueConstraint("name", "location", name="uq_seller_name_location"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(150), nullable=False)

@@ -5,7 +5,7 @@ from car_scraper.db.models.dto.BradDTO import BrandDTO
 from car_scraper.db.models.dto.CarAdInfoDTO import CarAdInfoDTO
 from car_scraper.db.models.dto.SellerInfoDTO import SellerInfoDTO
 from contextlib import contextmanager
-from typing import Iterator, List, Optional
+from typing import Iterator, List, Optional, Tuple
 from playwright.sync_api import sync_playwright, Page, BrowserContext
 from car_scraper.scrapers.scraper import BaseScraper
 from car_scraper.utils.human import human_delay, human_scroll, human_scroll_to_bottom, save_page_to_file, show_html
@@ -34,7 +34,6 @@ LOC_SELLER_PHONE = "#VehicleSellerInformationPhone_"
 LOC_SELLER_PHONE_DDD = "#VehicleSellerInformationPhone_ small"
 LOC_SELLER_CODE = ".CardSeller__code__connection__number"
 LOC_SELLER_STOCK = "#VehicleSellerInformationStock"
-
 
 WAIT_SHORT = 5_000
 WAIT_STD = 20_000
@@ -247,10 +246,11 @@ class Webmotors_Scraper(BaseScraper):
             stock_url=stock_url,
         )
 
-        logger.debug(f" Seller Info: {seller_dto}")
+        logger.info(f" Seller Info: {seller_dto}")
 
         return seller_dto
-    def get_car_ad(self, car_info: CarDownloadInfoDTO) -> CarAdInfoDTO | None:
+
+    def get_car_ad(self, car_info: CarDownloadInfoDTO) -> tuple[CarAdInfoDTO, SellerInfoDTO] | None:
         if not car_info.href:
             return None
 
@@ -278,7 +278,7 @@ class Webmotors_Scraper(BaseScraper):
             ad_info.created_at = my_time_now()
             ad_info.updated_at = my_time_now()
 
-            self.get_seller_info(page)
+            seller = self.get_seller_info(page)
+            logger.info(f"{ad_info}")
 
-            logger.debug(f"{ad_info}")
-            return ad_info
+            return ad_info, seller

@@ -13,6 +13,7 @@ class SellerInfoDTO:
     phone: Optional[str] = None
     contact_code: Optional[str] = None
     stock_url: Optional[str] = None
+    job_id: int = 0
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -20,7 +21,7 @@ class SellerInfoDTO:
         return f"{self.to_dict()}"
 
     @staticmethod
-    def from_entity(entity: SellerInfo) -> "SellerInfoDTO":
+    def to_dto(entity: SellerInfo) -> "SellerInfoDTO":
         return SellerInfoDTO(
             id=entity.id,
             name=entity.name,
@@ -28,13 +29,14 @@ class SellerInfoDTO:
             phone=entity.phone,
             contact_code=entity.contact_code,
             stock_url=entity.stock_url,
+            job_id=entity.job_id,
             created_at=entity.created_at,
             updated_at=entity.updated_at,
         )
 
     @staticmethod
     def from_entity_list(entities: list[SellerInfo]) -> list["SellerInfoDTO"]:
-        return [SellerInfoDTO.from_entity(e) for e in entities]
+        return [SellerInfoDTO.to_dto(e) for e in entities]
 
     @staticmethod
     def to_entity(dto: "SellerInfoDTO") -> SellerInfo:
@@ -45,6 +47,7 @@ class SellerInfoDTO:
             phone=dto.phone,
             contact_code=dto.contact_code,
             stock_url=dto.stock_url,
+            job_id=dto.job_id,
             created_at=dto.created_at,
             updated_at=dto.updated_at,
         )
@@ -57,6 +60,7 @@ class SellerInfoDTO:
             "phone": self.phone,
             "contact_code": self.contact_code,
             "stock_url": self.stock_url,
+            "job_id": self.job_id,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
