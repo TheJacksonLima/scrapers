@@ -197,10 +197,7 @@ class Webmotors_Scraper(BaseScraper):
                 case "Cidade":
                     car_ad_info.city = value
                 case "Ano":
-                    try:
-                        car_ad_info.year = int(value)
-                    except ValueError:
-                        pass
+                    car_ad_info.year = value
                 case "KM":
                     try:
                         car_ad_info.km = int(value.replace(".", "").replace(" km", "").strip())
@@ -246,7 +243,7 @@ class Webmotors_Scraper(BaseScraper):
             stock_url=stock_url,
         )
 
-        logger.info(f" Seller Info: {seller_dto}")
+        logger.info(f"{seller_dto}")
 
         return seller_dto
 
@@ -270,6 +267,23 @@ class Webmotors_Scraper(BaseScraper):
             basicInformation = page.locator("#VehicleBasicInformationTitle")
             ad_info.name = basicInformation.text_content()
             ad_info.desc = page.locator("#VehicleBasicInformationDescription").text_content()
+
+            price_selector = page.locator("#vehicleSendProposalPrice")
+            price_text = price_selector.text_content()
+
+            if price_text:
+                cleaned = (
+                    price_text.replace("R$", "")
+                    .replace(".", "")
+                    .replace(",", ".")
+                    .strip()
+                )
+                try:
+                    ad_info.price = float(cleaned)
+                except ValueError:
+                    ad_info.price = None
+            else:
+                ad_info.price = None
 
             ad_info.ad_link = car_info.href
             ad_info.qty_images = len(ad_info.ad_images_links) + 1

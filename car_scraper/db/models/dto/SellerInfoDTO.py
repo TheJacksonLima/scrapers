@@ -18,7 +18,7 @@ class SellerInfoDTO:
     updated_at: Optional[datetime] = None
 
     def __str__(self):
-        return f"{self.to_dict()}"
+        return f"SellerInfoDTO: {self.to_dict()}"
 
     @staticmethod
     def to_dto(entity: SellerInfo) -> "SellerInfoDTO":

@@ -147,7 +147,8 @@ class Service:
             return JobDownloadControlDTO.to_dto(ret)
 
     @staticmethod
-    def save_or_update_ads_and_sellers(l_ads_and_sellers: List[Tuple[CarAdInfoDTO, SellerInfoDTO]]) -> List[Tuple[CarAdInfoDTO, SellerInfoDTO]]:
+    def save_or_update_ads_and_sellers(l_ads_and_sellers: List[Tuple[CarAdInfoDTO, SellerInfoDTO]]) -> List[
+        Tuple[CarAdInfoDTO, SellerInfoDTO]]:
         with SessionLocal() as db:
             repo = Repository(db)
             l_ads_and_sellers_out = []
@@ -163,3 +164,9 @@ class Service:
 
             db.commit()
             return l_ads_and_sellers_out
+
+    @staticmethod
+    def get_count_pending_ads() -> int | None:
+        with SessionLocal() as db:
+            repo = Repository(db)
+            return repo.get_count_pending_ads()

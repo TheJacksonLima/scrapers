@@ -4,6 +4,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.mutable import MutableList
 from car_scraper.db.entity.base import Base
+from sqlalchemy import Numeric
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -24,8 +25,9 @@ class CarAdInfo(Base):
     )
     qty_images: Mapped[int] = mapped_column(Integer, nullable=True)
     city: Mapped[str] = mapped_column(String(100), nullable=True)
-    year: Mapped[int] = mapped_column(Integer, nullable=True)
+    year: Mapped[str] = mapped_column(String, nullable=True)
     km: Mapped[int] = mapped_column(Integer, nullable=True)
+    price: Mapped[float] = mapped_column(Numeric(12, 2), nullable=True)
     transmission: Mapped[str] = mapped_column(String(50), nullable=True)
     type: Mapped[str] = mapped_column(String(100), nullable=False)
     color: Mapped[str] = mapped_column(String(100), nullable=False)

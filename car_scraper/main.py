@@ -1,8 +1,6 @@
 import math
 import re
 
-from sqlalchemy import func
-
 from car_scraper.db.entity.base import Base
 from car_scraper.db.models.dto.BradDTO import BrandDTO
 from car_scraper.db.models.dto.JobDownloadControlDTO import JobDownloadControlDTO
@@ -12,6 +10,8 @@ from car_scraper.db.models.enums.JobType import JobType
 from car_scraper.db.session import engine
 from car_scraper.scrapers.webmotors import Webmotors_Scraper
 from car_scraper.services.service import Service
+from car_scraper.utils.config import settings
+from car_scraper.utils.human import human_delay
 from car_scraper.utils.logging_config import setup_logging
 from car_scraper.utils.my_time_now import my_time_now
 
@@ -122,6 +122,16 @@ def get_brands(source: JobSource):
         service.update_batch(batch_info)
 
 
+def validate_ads():
+    l_car_ads = service.get_ads_to_download()
+    for car_ad in l_car_ads:
+        if web_motors.is_ad_sold(car_ad.href):
+            logger.info(f"{car_ad.car_desc} is not available")
+            car_ad.status = JobStatus.MISSING_AD
+            service.update_car_download_info(car_ad)
+            continue
+
+
 def get_car_ads():
     l_ads_and_sellers = []
     ads_counter = 0
@@ -148,7 +158,12 @@ def get_car_ads():
 
             if ad_info is not None:
                 ads_counter = ads_counter + 1
+                car_ad.status = JobStatus.COMPLETED
+                service.update_car_download_info(car_ad)
                 l_ads_and_sellers.append((ad_info, seller))
+            else:
+                car_ad.status = JobStatus.FAILED
+                service.update_car_download_info(car_ad)
 
         service.save_or_update_ads_and_sellers(l_ads_and_sellers)
 
@@ -156,10 +171,18 @@ def get_car_ads():
         batch_info.finished_at = my_time_now()
 
     except Exception as e:
+
+        for car_ad in l_car_ads:
+            car_ad.status = JobStatus.FAILED
+            service.update_car_download_info(car_ad)
+
+        service.save_or_update_ads_and_sellers(l_ads_and_sellers)
+
         batch_info.status = JobStatus.FAILED
         batch_info.finished_at = my_time_now()
         batch_info.error_message = f"{type(e).__name__}: {e}"[:500]
         logger.exception(f"Error while fetching car ads on batch {batch_info.job_id}")
+        raise Exception
 
     finally:
         service.update_batch(batch_info)
@@ -174,6 +197,44 @@ def init_batch(brand: BrandDTO, job_type: JobType) -> JobDownloadControlDTO:
     return batch_info
 
 
+def execute_validate_ads():
+    counter_ex = 0
+    counter_pending_ads = service.get_count_pending_ads()
+    logger.info(f"Execute get car ads, pending ads: {counter_pending_ads}")
+
+    while counter_pending_ads > 0 and counter_ex < int(settings.MAX_EX_ALLOWED):
+        try:
+            validate_ads()
+            human_delay(10, 30)
+        except Exception as ex:
+            counter_ex = counter_ex + 1
+            logger.info(f"One exception has occurred: {ex}")
+            logger.info(f"Total exceptions: {counter_ex}")
+            human_delay(60, 300)
+        finally:
+            counter_pending_ads = service.get_count_pending_ads()
+            logger.info(f"Execute get car ads, pending ads: {counter_pending_ads}")
+
+
+def execute_get_car_ads():
+    counter_ex = 0
+    counter_pending_ads = service.get_count_pending_ads()
+    logger.info(f"Execute get car ads, pending ads: {counter_pending_ads}")
+
+    while counter_pending_ads > 0 and counter_ex < int(settings.MAX_EX_ALLOWED):
+        try:
+            get_car_ads()
+            human_delay(10, 30)
+        except Exception as ex:
+            counter_ex = counter_ex + 1
+            logger.info(f"One exception has occurred: {ex}")
+            logger.info(f"Total exceptions: {counter_ex}")
+            human_delay(60, 300)
+        finally:
+            counter_pending_ads = service.get_count_pending_ads()
+            logger.info(f"Execute get car ads, pending ads: {counter_pending_ads}")
+
+
 def main():
     logger.info("Starting scraper...")
     Base.metadata.create_all(bind=engine)
@@ -184,7 +245,9 @@ def main():
         #brand = service.get_brand('webmotors', 'Honda')
         #batch = init_batch(brand, JobType.CAR_DOWNLOAD_INFO)
         #get_ads_from_brand(brand, batch)
-        get_car_ads()
+        #get_car_ads()
+        #execute_get_car_ads()
+        execute_validate_ads()
     except Exception as e:
         logger.exception(f"Error executing scrapper {e}")
 

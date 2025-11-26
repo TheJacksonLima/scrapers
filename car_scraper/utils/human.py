@@ -1,13 +1,19 @@
+import logging
 import random
-import os
 import time
+
 from bs4 import BeautifulSoup
 from sqlalchemy.dialects import postgresql
+
 from car_scraper.utils.config import PROJECT_ROOT
 
+logger = logging.getLogger(__name__)
 
-def human_delay(a=0.8, b=2.0):
-    time.sleep(random.uniform(a, b))
+
+def human_delay(min_seconds=0.8, max_seconds=2.0):
+    duration = random.uniform(min_seconds, max_seconds)
+    logger.info(f"Sleeping for {duration:.2f} seconds...")
+    time.sleep(duration)
 
 
 def human_scroll(page, distance=600):

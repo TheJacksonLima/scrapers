@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
 from typing import List, Optional, Sequence
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from car_scraper.db.entity import JobDownloadControl, CarDownloadInfo
@@ -132,7 +132,7 @@ class Repository:
         )
         return self.db.execute(stmt).scalar_one_or_none()
 
-    def get_car_ads(self, max: int) -> Sequence[CarDownloadInfo]:
+    def get_car_ads(self, max: int) -> List[CarDownloadInfo]:
         stmt = (
             select(CarDownloadInfo)
             .where(
@@ -144,12 +144,22 @@ class Repository:
         #show_sql(stmt)
         return self.db.execute(stmt).scalars().all()
 
+    def get_count_pending_ads(self) -> int | None:
+        stmt = (
+            select(func.count(CarDownloadInfo.id))
+            .where(
+                CarDownloadInfo.status == JobStatus.PENDING
+            )
+        )
+        return self.db.execute(stmt).scalar_one()
+
+
     def get_ad_by_link(self,  ad_info: CarAdInfo) -> CarAdInfo | None:
         stmt = select(CarAdInfo).where(CarAdInfo.ad_link == ad_info.ad_link)
         return self.db.execute(stmt).scalar_one_or_none()
 
     def save_or_update_car_ad_info(self, ad_info: CarAdInfo) -> CarAdInfo | None:
-        existing_ad = self.get_ad_by_link(ad_info.ad_link)
+        existing_ad = self.get_ad_by_link(ad_info)
         if existing_ad:
             existing_ad.name = ad_info.name
             existing_ad.desc = ad_info.desc
@@ -158,6 +168,7 @@ class Repository:
             existing_ad.city = ad_info.city
             existing_ad.year = ad_info.year
             existing_ad.km = ad_info.km
+            existing_ad.price = ad_info.price
             existing_ad.transmission = ad_info.transmission
             existing_ad.type = ad_info.type
             existing_ad.color = ad_info.color

@@ -7,6 +7,7 @@ from car_scraper.db.models.enums.JobStatus import JobStatus
 
 @dataclass
 class CarDownloadInfoDTO:
+    id: int = 0
     job_id: int = 0
     href: str = ""
     page: int = 0
@@ -18,11 +19,12 @@ class CarDownloadInfoDTO:
     updated_at: Optional[datetime] = None
 
     def __str__(self):
-        return f"Car({self.car_desc}) - href: {self.href}, image: {self.image or 'N/A'}"
+        return f"CarDownloadInfoDTO: {self.to_dict()}"
 
     @staticmethod
     def to_dto(entity: CarDownloadInfo) -> "CarDownloadInfoDTO":
         return CarDownloadInfoDTO(
+            id=entity.id,
             job_id=entity.job_id,
             href=entity.href,
             page=entity.page,
@@ -38,6 +40,7 @@ class CarDownloadInfoDTO:
     @staticmethod
     def to_entity(dto: "CarDownloadInfoDTO") -> CarDownloadInfo:
         return CarDownloadInfo(
+            id=dto.id,
             job_id=dto.job_id,
             href=dto.href,
             page=dto.page,
@@ -51,25 +54,12 @@ class CarDownloadInfoDTO:
         )
 
     @staticmethod
-    def from_entity(entity: "CarDownloadInfo") -> "CarDownloadInfoDTO":
-        return CarDownloadInfoDTO(
-            job_id=entity.job_id,
-            href=entity.href,
-            page=entity.page,
-            car_desc=entity.car_desc,
-            image=entity.image,
-            brand_id=entity.brand_id,
-            status=entity.status,
-            created_at=entity.created_at,
-            updated_at=entity.updated_at
-        )
-
-    @staticmethod
     def from_entity_list(entities: List["CarDownloadInfo"]) -> List["CarDownloadInfoDTO"]:
-        return [CarDownloadInfoDTO.from_entity(e) for e in entities]
+        return [CarDownloadInfoDTO.to_dto(e) for e in entities]
 
     def to_dict(self) -> dict:
         return {
+            "id": self.id,
             "job_id": self.job_id,
             "href": self.href,
             "page": self.page,

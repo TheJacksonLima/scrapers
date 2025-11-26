@@ -12,7 +12,7 @@ class BrandDTO:
     total_ads: int = 0
 
     def __str__(self):
-        return f"Brand:  {self.id} {self.name} (source:{self.source}) - (total_ads:{self.total_ads})"
+        return f"BrandDTO:  {self.to_dict()}"
 
     @staticmethod
     def to_dto(entity: Brand) -> "BrandDTO":
