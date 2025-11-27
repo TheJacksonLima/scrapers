@@ -38,10 +38,10 @@ class Service:
             return BrandDTO.to_dto(repo.get_ads_from_brand(brand_dto.get_entity()))
 
     @staticmethod
-    def get_ads_to_download() -> List[CarDownloadInfoDTO]:
+    def get_ads_to_download(max_ads=settings.MAX_ADS_TO_PROCESS, status=JobStatus.PENDING) -> List[CarDownloadInfoDTO]:
         with SessionLocal() as db:
             repo = Repository(db)
-            ret = repo.get_car_ads(settings.MAX_ADS_TO_PROCESS)
+            ret = repo.get_car_ads(max_ads, status)
             return CarDownloadInfoDTO.from_entity_list(ret)
 
     @staticmethod
@@ -147,7 +147,8 @@ class Service:
             return JobDownloadControlDTO.to_dto(ret)
 
     @staticmethod
-    def save_or_update_ads_and_sellers(l_ads_and_sellers: List[Tuple[CarAdInfoDTO, SellerInfoDTO]]) -> List[Tuple[CarAdInfoDTO, SellerInfoDTO]]:
+    def save_or_update_ads_and_sellers(l_ads_and_sellers: List[Tuple[CarAdInfoDTO, SellerInfoDTO]]) -> List[
+        Tuple[CarAdInfoDTO, SellerInfoDTO]]:
         with SessionLocal() as db:
             repo = Repository(db)
             l_ads_and_sellers_out = []
@@ -163,3 +164,16 @@ class Service:
 
             db.commit()
             return l_ads_and_sellers_out
+
+    @staticmethod
+    def get_ads_to_scrape(max_ads=settings.MAX_ADS_TO_PROCESS, status=JobStatus.READY) -> List[CarDownloadInfoDTO]:
+        with SessionLocal() as db:
+            repo = Repository(db)
+            ret = repo.get_car_ads(max_ads, status)
+            return CarDownloadInfoDTO.from_entity_list(ret)
+
+    @staticmethod
+    def get_count(status: JobStatus) -> int | None:
+        with SessionLocal() as db:
+            repo = Repository(db)
+            return repo.get_count(status)

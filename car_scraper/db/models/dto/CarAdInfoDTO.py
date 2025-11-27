@@ -13,8 +13,9 @@ class CarAdInfoDTO:
     ad_images_links: List[str] = None
     qty_images: Optional[int] = None
     city: str = ""
-    year: Optional[int] = None
+    year: Optional[str] = None
     km: Optional[int] = None
+    price: Optional[float] = None
     transmission: Optional[str] = None
     type: str = ""
     color: str = ""
@@ -31,7 +32,7 @@ class CarAdInfoDTO:
     updated_at: Optional[datetime] = None
 
     def __str__(self):
-        return f"{self.to_dict()}"
+        return f"CarAdInfoDTO: {self.to_dict()}"
 
     @staticmethod
     def to_dto(entity: CarAdInfo) -> "CarAdInfoDTO":
@@ -45,6 +46,7 @@ class CarAdInfoDTO:
             city=entity.city,
             year=entity.year,
             km=entity.km,
+            price=entity.price,
             transmission=entity.transmission,
             type=entity.type,
             color=entity.color,
@@ -62,7 +64,7 @@ class CarAdInfoDTO:
 
     @staticmethod
     def from_entity_list(entities: List[CarAdInfo]) -> List["CarAdInfoDTO"]:
-        return [CarAdInfoDTO.from_entity(e) for e in entities]
+        return [CarAdInfoDTO.to_dto(e) for e in entities]
 
     @staticmethod
     def to_entity(dto: "CarAdInfoDTO") -> CarAdInfo:
@@ -76,6 +78,7 @@ class CarAdInfoDTO:
             city=dto.city,
             year=dto.year,
             km=dto.km,
+            price=dto.price,
             transmission=dto.transmission,
             type=dto.type,
             color=dto.color,
@@ -102,6 +105,7 @@ class CarAdInfoDTO:
             "city": self.city,
             "year": self.year,
             "km": self.km,
+            "price": self.price,
             "transmission": self.transmission,
             "type": self.type,
             "color": self.color,

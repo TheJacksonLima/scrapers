@@ -14,7 +14,8 @@ if TYPE_CHECKING:
 class CarDownloadInfo(Base):
     __tablename__ = "car_download_info"
 
-    href: Mapped[str] = mapped_column(String(500), primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    href: Mapped[str] = mapped_column(String(500), nullable=False, unique=True)
     car_desc: Mapped[str] = mapped_column(String(255), nullable=False)
     page: Mapped[int] = mapped_column(Integer, nullable=False)
     image: Mapped[str | None] = mapped_column(String(500), nullable=True)

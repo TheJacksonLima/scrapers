@@ -24,23 +24,7 @@ class JobDownloadControlDTO:
     finished_at: Optional[datetime] = None
 
     def __str__(self):
-        return (
-            f"JobDownloadControlDTO("
-            f"job_id={self.job_id}, "
-            f"job_type={self.job_type}, "
-            f"source_name={self.source_name}, "
-            f"brand_id={self.brand_id}, "
-            f"status={self.status}, "
-            f"error_message='{self.error_message}', "
-            f"last_page={self.last_page}, "
-            f"total_pages={self.total_pages}, "
-            f"attempts={self.attempts}, "
-            f"created_at={self.created_at}, "
-            f"updated_at={self.updated_at}, "
-            f"started_at={self.started_at}, "
-            f"finished_at={self.finished_at}"
-            f")"
-        )
+        return f"JobDownloadControlDTO: {self.to_dict()}"
 
     @staticmethod
     def to_dto(entity: JobDownloadControl) -> "JobDownloadControlDTO":
