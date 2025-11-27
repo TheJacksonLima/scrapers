@@ -132,29 +132,28 @@ class Repository:
         )
         return self.db.execute(stmt).scalar_one_or_none()
 
-    def get_car_ads(self, max: int) -> List[CarDownloadInfo]:
+    def get_car_ads(self, max_ads: int, status: JobStatus) -> List[CarDownloadInfo]:
         stmt = (
             select(CarDownloadInfo)
             .where(
-                CarDownloadInfo.status == JobStatus.PENDING
+                CarDownloadInfo.status == status
             )
-            .order_by(CarDownloadInfo.created_at.desc())
-            .limit(max)
+            .order_by(CarDownloadInfo.created_at.asc())
+            .limit(max_ads)
         )
         #show_sql(stmt)
         return self.db.execute(stmt).scalars().all()
 
-    def get_count_pending_ads(self) -> int | None:
+    def get_count(self, status) -> int | None:
         stmt = (
             select(func.count(CarDownloadInfo.id))
             .where(
-                CarDownloadInfo.status == JobStatus.PENDING
+                CarDownloadInfo.status == status
             )
         )
         return self.db.execute(stmt).scalar_one()
 
-
-    def get_ad_by_link(self,  ad_info: CarAdInfo) -> CarAdInfo | None:
+    def get_ad_by_link(self, ad_info: CarAdInfo) -> CarAdInfo | None:
         stmt = select(CarAdInfo).where(CarAdInfo.ad_link == ad_info.ad_link)
         return self.db.execute(stmt).scalar_one_or_none()
 
