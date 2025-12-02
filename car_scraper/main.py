@@ -136,6 +136,7 @@ def check_if_add_is_missing(car_ad) -> bool:
 
 
 def validate_ads():
+    logger.info(f"Validating car ads")
     l_car_ads = service.get_ads_to_download(settings.MAX_ADS_TO_PROCESS)
     for car_ad in l_car_ads:
         try:
@@ -174,7 +175,10 @@ def get_car_ads(validate=False):
                 car_ad.status = JobStatus.RUNNING
                 service.update_car_download_info(car_ad)
 
-                ad_info, seller = web_motors.get_car_ad(car_ad)
+                #ad_info, seller = web_motors.get_car_ad(car_ad)
+                ad_info = web_motors.get_car_ad_via_api(car_ad)
+                print(ad_info)
+                continue
                 seller.job_id = batch_info.job_id
 
                 if ad_info is not None:
@@ -235,12 +239,14 @@ def execute_validate_ads():
 
 
 def execute_get_car_ads():
-    validate_ads()  #Validate the adds first
     counter_ex = 0
     counter_ready_ads = service.get_count(JobStatus.READY)
-    logger.info(f"Execute get car ads, total of READY ads: {counter_ready_ads}")
 
-    while counter_ready_ads > 0 and counter_ex < int(settings.MAX_EX_ALLOWED):
+    if counter_ready_ads == 0:
+        counter_ready_ads = 1
+
+    while counter_ready_ads > 0: #and counter_ex < int(settings.MAX_EX_ALLOWED)*10:
+        logger.info(f"Execute get car ads, total of READY ads: {counter_ready_ads}")
         try:
             get_car_ads()
             human_delay(10, 30)
@@ -252,9 +258,7 @@ def execute_get_car_ads():
         finally:
             validate_ads()
             human_delay(10, 30)
-
             counter_ready_ads = service.get_count(JobStatus.READY)
-            logger.info(f"Execute get car ads, pending ads: {counter_ready_ads}")
 
 
 def main():

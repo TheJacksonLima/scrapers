@@ -1,5 +1,7 @@
 import logging
 import re
+
+from car_scraper.db.entity.WebmotorsCarAd import WebmotorsCarAd
 from car_scraper.db.models.dto.CarDownloadInfoDTO import CarDownloadInfoDTO
 from car_scraper.db.models.dto.BradDTO import BrandDTO
 from car_scraper.db.models.dto.CarAdInfoDTO import CarAdInfoDTO
@@ -34,6 +36,16 @@ LOC_SELLER_PHONE = "#VehicleSellerInformationPhone_"
 LOC_SELLER_PHONE_DDD = "#VehicleSellerInformationPhone_ small"
 LOC_SELLER_CODE = ".CardSeller__code__connection__number"
 LOC_SELLER_STOCK = "#VehicleSellerInformationStock"
+LOC_CONTAINER = "#VehicleSellerInformation"
+LOC_NAME = "#VehicleSellerInformationName"
+LOC_PRIVATE_NAME = "#VehicleSellerPrivateName"
+LOC_LOCATION = "#VehicleSellerInformationState"
+LOC_PRIVATE_LOCATION = "#VehicleSellerPrivateState"
+LOC_PHONE = "#VehicleSellerInformationPhone_"
+LOC_STORE_WRAPPER = ".CardSeller--dealership"
+LOC_CODE = ".CardSeller__code__connection__number"
+LOC_STOCK = "#VehicleSellerInformationStock"
+LOC_PRIVATE_WRAPPER = ".CardSeller--private"
 
 WAIT_SHORT = 5_000
 WAIT_STD = 20_000
@@ -224,28 +236,170 @@ class Webmotors_Scraper(BaseScraper):
 
         return car_ad_info
 
-    def get_seller_info(self, page) -> SellerInfoDTO:
-        page.wait_for_selector(LOC_SELLER_NAME)
+    def get_seller_info(self, page) -> SellerInfoDTO | None:
+        page.wait_for_selector(LOC_CONTAINER)
+        container = page.locator(LOC_CONTAINER)
 
-        seller_name = page.locator(LOC_SELLER_NAME).text_content()
-        seller_location = page.locator(LOC_SELLER_LOCATION).text_content()
-        phone_num = page.locator(LOC_SELLER_PHONE).text_content().strip()
-        contact_code = page.locator(LOC_SELLER_CODE).text_content()
-        stock_path = page.locator(LOC_SELLER_STOCK).get_attribute("href")
+        is_store = container.locator(LOC_STORE_WRAPPER).count() > 0
+        is_private = container.locator(LOC_PRIVATE_WRAPPER).count() > 0
+        seller_name = None
+        seller_location = None
+        contact_code = None
+        stock_url = None
+        phone_num = None
 
-        stock_url = f"https://www.webmotors.com.br{stock_path}" if stock_path else None
+        if is_private:
+            seller_name = container.locator(LOC_PRIVATE_NAME).text_content().strip()
+            seller_location = container.locator(LOC_PRIVATE_LOCATION).text_content().strip()
 
-        seller_dto = SellerInfoDTO(
-            name=seller_name,
-            location=seller_location,
-            phone=phone_num,
-            contact_code=contact_code,
-            stock_url=stock_url,
-        )
+        elif is_store:
+            seller_name = container.locator(LOC_NAME).text_content().strip()
+            seller_location = container.locator(LOC_LOCATION).text_content().strip()
+            code_loc = container.locator(LOC_CODE)
+            if code_loc.count() > 0:
+                contact_code = code_loc.text_content().strip()
+
+            stock_path = container.locator(LOC_STOCK).get_attribute("href")
+            phone_locator = container.locator(LOC_PHONE)
+            if phone_locator.count() > 0:
+                phone_num = phone_locator.text_content().strip()
+
+            if stock_path:
+                stock_url = f"https://www.webmotors.com.br{stock_path}"
+
+        if seller_name is not None:
+            seller_dto = SellerInfoDTO(
+                name=seller_name,
+                location=seller_location,
+                phone=phone_num,
+                contact_code=contact_code,
+                stock_url=stock_url,
+                is_private=is_private,
+            )
+        else:
+            seller_dto = None
 
         logger.info(f"{seller_dto}")
-
         return seller_dto
+
+
+    def parse_api_json_to_entity(api_json: dict) -> WebmotorsCarAd:
+        """
+        Converte o JSON bruto da API interna do Webmotors
+        para a entidade WebmotorsCarAd (SQLAlchemy ORM).
+        """
+
+        spec = api_json.get("Specification", {})
+        seller = api_json.get("Seller", {})
+        media = api_json.get("Media", {})
+
+        # Valores básicos
+        unique_id = api_json.get("UniqueId")
+
+        # Preços
+        prices = api_json.get("Prices", {})
+        price = float(prices.get("Price", 0)) if prices.get("Price") else None
+        search_price = float(prices.get("SearchPrice", 0)) if prices.get("SearchPrice") else None
+
+        # Fotos
+        photos_list = media.get("Photos", [])
+        photos = [{"url": p.get("PhotoPath"), "order": p.get("Order")} for p in photos_list]
+
+        # Conversões defensivas
+        def to_int(x: Optional[str]):
+            if x is None:
+                return None
+            try:
+                return int(x)
+            except:
+                return None
+
+        # Criar entidade ORM
+        entity = WebmotorsCarAd(
+            unique_id=unique_id,
+
+            price=price,
+            search_price=search_price,
+
+            make=spec.get("Make", {}).get("Value"),
+            model=spec.get("Model", {}).get("Value"),
+            version=spec.get("Version", {}).get("Value"),
+
+            year_fabrication=to_int(spec.get("YearFabrication")),
+            year_model=to_int(spec.get("YearModel")),
+            odometer=to_int(spec.get("Odometer")),
+            transmission=spec.get("Transmission"),
+            fuel=spec.get("Fuel"),
+            body_type=spec.get("BodyType"),
+
+            color=spec.get("Color", {}).get("Primary"),
+            final_plate=spec.get("FinalPlate"),
+            armored=(spec.get("Armored") == "S"),
+
+            # JSON fields
+            optionals=spec.get("Optionals", []),
+            lifestyle=spec.get("LifeStyle", []),
+            vehicle_attributes=spec.get("VehicleAttributes", []),
+
+            # Seller
+            seller_type=seller.get("SellerType"),
+            seller_name=seller.get("FantasyName"),
+            seller_city=seller.get("City"),
+            seller_state=seller.get("State"),
+            seller_cnpj=seller.get("CNPJ"),
+            seller_phones=seller.get("Phones", []),
+            seller_localization=seller.get("Localization", []),
+
+            photos=photos,
+
+            # Datas (ISO strings sem conversão)
+            created_date_api=api_json.get("CreatedDate"),
+            published_date_api=spec.get("DatePublished"),
+        )
+
+        return entity
+
+    def get_car_ad_via_api(self, car_info: CarDownloadInfoDTO) -> WebmotorsCarAd | None:
+        """
+        Captura os detalhes completos do anúncio usando a chamada interna
+        da API /api/detail/car/{id}, evitando scraping e evitando captcha.
+        Funciona em qualquer Playwright Sync.
+        """
+        if not car_info.href:
+            return None
+
+        logger.info(f"Interceptando API interna do anúncio: {car_info.href}")
+
+        api_json = None
+
+        with self._page(car_info.href) as page:
+
+            # Listener para todas responses
+            def on_response(response):
+                nonlocal api_json
+                url = response.url
+                if "api/detail/car" in url and response.status == 200:
+                    try:
+                        api_json = response.json()
+                    except Exception as e:
+                        logger.error(f"Erro ao ler JSON da API: {e}")
+
+            page.on("response", on_response)
+
+            # Carrega a página e espera o HTML básico (garante que a SPA carregou)
+            try:
+                page.wait_for_selector("main", timeout=WAIT_STD)
+            except:
+                pass
+
+            # Dá tempo para a API disparar automaticamente
+            page.wait_for_timeout(4000)
+
+            if not api_json:
+                logger.error("Não foi possível capturar a chamada da API interna.")
+                return None
+
+            return self.parse_api_json_to_entity(api_json)
 
     def get_car_ad(self, car_info: CarDownloadInfoDTO) -> tuple[CarAdInfoDTO, SellerInfoDTO] | None:
         if not car_info.href:

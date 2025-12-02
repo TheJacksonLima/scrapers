@@ -14,6 +14,7 @@ class SellerInfoDTO:
     contact_code: Optional[str] = None
     stock_url: Optional[str] = None
     job_id: int = 0
+    is_private: bool = False
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -30,6 +31,7 @@ class SellerInfoDTO:
             contact_code=entity.contact_code,
             stock_url=entity.stock_url,
             job_id=entity.job_id,
+            is_private=entity.is_private,
             created_at=entity.created_at,
             updated_at=entity.updated_at,
         )
@@ -48,6 +50,7 @@ class SellerInfoDTO:
             contact_code=dto.contact_code,
             stock_url=dto.stock_url,
             job_id=dto.job_id,
+            is_private=dto.is_private,
             created_at=dto.created_at,
             updated_at=dto.updated_at,
         )
@@ -61,6 +64,7 @@ class SellerInfoDTO:
             "contact_code": self.contact_code,
             "stock_url": self.stock_url,
             "job_id": self.job_id,
+            "is_private": self.is_private,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }

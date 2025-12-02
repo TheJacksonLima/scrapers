@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import DateTime, func, Integer, String, ForeignKey, UniqueConstraint
+from sqlalchemy import DateTime, func, Integer, String, ForeignKey, UniqueConstraint, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from car_scraper.db.entity.base import Base
 
@@ -19,6 +19,7 @@ class SellerInfo(Base):
     phone: Mapped[str] = mapped_column(String(50), nullable=True)
     contact_code: Mapped[str] = mapped_column(String(20), nullable=True)
     stock_url: Mapped[str] = mapped_column(String(500), nullable=True)
+    is_private: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
     job_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("job_download_control.job_id", ondelete="CASCADE"), nullable=False
