@@ -1,6 +1,7 @@
 import logging
 import re
-
+import datetime
+from car_scraper.utils.playwright_stealth import stealth_sync
 from car_scraper.db.entity.WebmotorsCarAd import WebmotorsCarAd
 from car_scraper.db.models.dto.CarDownloadInfoDTO import CarDownloadInfoDTO
 from car_scraper.db.models.dto.BradDTO import BrandDTO
@@ -69,13 +70,21 @@ class Webmotors_Scraper(BaseScraper):
     @contextmanager
     def _page(self, url: Optional[str] = None) -> Iterator[Page]:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=self.headless, args=["--disable-blink-features=AutomationControlled"])
+            #browser = p.chromium.launch(headless=self.headless, args=["--disable-blink-features=AutomationControlled"])
+            browser = p.chromium.launch(headless=self.headless, args=[
+                                                                      "--disable-blink-features=AutomationControlled",
+                                                                      "--disable-dev-shm-usage",
+                                                                      "--no-sandbox",
+                                                                      "--disable-extensions",
+                                                                      "--disable-gpu"
+                                                                    ],)
             context: BrowserContext = browser.new_context(
                 user_agent=UA,
                 locale="pt-BR",
                 viewport=VIEWPORT,
                 extra_http_headers=HDRS
             )
+            stealth_sync(context)
             page = context.new_page()
             try:
                 if url:
@@ -374,7 +383,6 @@ class Webmotors_Scraper(BaseScraper):
 
         with self._page(car_info.href) as page:
 
-            # Listener para todas responses
             def on_response(response):
                 nonlocal api_json
                 url = response.url
@@ -386,20 +394,23 @@ class Webmotors_Scraper(BaseScraper):
 
             page.on("response", on_response)
 
-            # Carrega a página e espera o HTML básico (garante que a SPA carregou)
             try:
                 page.wait_for_selector("main", timeout=WAIT_STD)
             except:
                 pass
 
-            # Dá tempo para a API disparar automaticamente
             page.wait_for_timeout(4000)
 
             if not api_json:
-                logger.error("Não foi possível capturar a chamada da API interna.")
+                ad_id = car_info.href.rstrip("/").split("/")[-1]
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                screenshot_path = f"error_screen_{ad_id}_{timestamp}.png"
+                page.screenshot(path=screenshot_path)
+                logger.error(f"Failed to capture internal API call for ad ID: {ad_id}. Screenshot saved at: {screenshot_path}")
                 return None
 
-            return self.parse_api_json_to_entity(api_json)
+
+            return api_json
 
     def get_car_ad(self, car_info: CarDownloadInfoDTO) -> tuple[CarAdInfoDTO, SellerInfoDTO] | None:
         if not car_info.href:

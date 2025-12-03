@@ -8,6 +8,7 @@ from car_scraper.db.models.enums.JobSource import JobSource
 from car_scraper.db.models.enums.JobStatus import JobStatus
 from car_scraper.db.models.enums.JobType import JobType
 from car_scraper.db.session import engine
+from car_scraper.db.mongo_repository import save_payload
 from car_scraper.scrapers.webmotors import Webmotors_Scraper
 from car_scraper.services.service import Service
 from car_scraper.utils.config import settings
@@ -177,7 +178,7 @@ def get_car_ads(validate=False):
 
                 #ad_info, seller = web_motors.get_car_ad(car_ad)
                 ad_info = web_motors.get_car_ad_via_api(car_ad)
-                print(ad_info)
+                save_payload(ad_info)
                 continue
                 seller.job_id = batch_info.job_id
 
@@ -256,8 +257,8 @@ def execute_get_car_ads():
             logger.info(f"Total exceptions: {counter_ex}")
             human_delay(60, 300)
         finally:
-            validate_ads()
-            human_delay(10, 30)
+            #validate_ads()
+            #human_delay(10, 30)
             counter_ready_ads = service.get_count(JobStatus.READY)
 
 
