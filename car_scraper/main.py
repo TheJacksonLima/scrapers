@@ -8,6 +8,7 @@ from car_scraper.db.models.enums.JobSource import JobSource
 from car_scraper.db.models.enums.JobStatus import JobStatus
 from car_scraper.db.models.enums.JobType import JobType
 from car_scraper.db.session import engine
+from car_scraper.db.mongo_repository import save_payload
 from car_scraper.scrapers.webmotors import Webmotors_Scraper
 from car_scraper.services.service import Service
 from car_scraper.utils.config import settings
@@ -15,6 +16,7 @@ from car_scraper.utils.exceptions import AdScrapingError
 from car_scraper.utils.human import human_delay
 from car_scraper.utils.logging_config import setup_logging
 from car_scraper.utils.my_time_now import my_time_now
+from car_scraper.utils.renew_tor_ip import renew_tor_ip
 
 logger = setup_logging()
 service = Service()
@@ -136,6 +138,7 @@ def check_if_add_is_missing(car_ad) -> bool:
 
 
 def validate_ads():
+    logger.info(f"Validating car ads")
     l_car_ads = service.get_ads_to_download(settings.MAX_ADS_TO_PROCESS)
     for car_ad in l_car_ads:
         try:
@@ -174,14 +177,12 @@ def get_car_ads(validate=False):
                 car_ad.status = JobStatus.RUNNING
                 service.update_car_download_info(car_ad)
 
-                ad_info, seller = web_motors.get_car_ad(car_ad)
-                seller.job_id = batch_info.job_id
-
+                ad_info = web_motors.get_car_ad_via_api(car_ad)
                 if ad_info is not None:
+                    save_payload(ad_info)
                     ads_counter += 1
                     car_ad.status = JobStatus.COMPLETED
                     service.update_car_download_info(car_ad)
-                    l_ads_and_sellers.append((ad_info, seller))
                 else:
                     car_ad.status = JobStatus.FAILED
                     service.update_car_download_info(car_ad)
@@ -190,7 +191,6 @@ def get_car_ads(validate=False):
                 logger.exception(f"Error while processing ad {car_ad.href} — {car_ad.car_desc}")
                 car_ad.status = JobStatus.FAILED
                 service.update_car_download_info(car_ad)
-                #continue
                 raise e
 
         service.save_or_update_ads_and_sellers(l_ads_and_sellers)
@@ -202,7 +202,7 @@ def get_car_ads(validate=False):
         batch_info.status = JobStatus.FAILED
         batch_info.finished_at = my_time_now()
         batch_info.error_message = f"{type(e).__name__}: {e}"[:500]
-        raise
+        raise e
 
     finally:
         service.update_batch(batch_info)
@@ -235,12 +235,15 @@ def execute_validate_ads():
 
 
 def execute_get_car_ads():
-    validate_ads()  #Validate the adds first
     counter_ex = 0
+    #validate_ads()
     counter_ready_ads = service.get_count(JobStatus.READY)
-    logger.info(f"Execute get car ads, total of READY ads: {counter_ready_ads}")
 
-    while counter_ready_ads > 0 and counter_ex < int(settings.MAX_EX_ALLOWED):
+    if counter_ready_ads == 0:
+        counter_ready_ads = 1
+
+    while counter_ready_ads > 0: #and counter_ex < int(settings.MAX_EX_ALLOWED)*10:
+        logger.info(f"Execute get car ads, total of READY ads: {counter_ready_ads}")
         try:
             get_car_ads()
             human_delay(10, 30)
@@ -250,11 +253,9 @@ def execute_get_car_ads():
             logger.info(f"Total exceptions: {counter_ex}")
             human_delay(60, 300)
         finally:
-            validate_ads()
-            human_delay(10, 30)
-
+            #validate_ads()
+            #human_delay(10, 30)
             counter_ready_ads = service.get_count(JobStatus.READY)
-            logger.info(f"Execute get car ads, pending ads: {counter_ready_ads}")
 
 
 def main():
