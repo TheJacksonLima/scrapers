@@ -1,22 +1,23 @@
+import datetime
 import logging
 import re
-import datetime
-from car_scraper.utils.playwright_stealth import stealth_sync
-from car_scraper.db.entity.WebmotorsCarAd import WebmotorsCarAd
-from car_scraper.db.models.dto.CarDownloadInfoDTO import CarDownloadInfoDTO
-from car_scraper.db.models.dto.BradDTO import BrandDTO
-from car_scraper.db.models.dto.CarAdInfoDTO import CarAdInfoDTO
-from car_scraper.db.models.dto.SellerInfoDTO import SellerInfoDTO
 from contextlib import contextmanager
-from typing import Iterator, List, Optional, Tuple
+from typing import Iterator, List, Optional
+
 from playwright.sync_api import sync_playwright, Page, BrowserContext
-from car_scraper.scrapers.scraper import BaseScraper
-from car_scraper.utils.human import human_delay, human_scroll, human_scroll_to_bottom, save_page_to_file, show_html
-from car_scraper.utils.config import settings
-from car_scraper.utils.my_time_now import my_time_now
+from car_scraper.db.entity.WebmotorsCarAd import WebmotorsCarAd
+from car_scraper.db.models.dto.BradDTO import BrandDTO
+from car_scraper.db.models.dto.CarDownloadInfoDTO import CarDownloadInfoDTO
 from car_scraper.db.models.enums.JobStatus import JobStatus
+from car_scraper.scrapers.scraper import BaseScraper
+from car_scraper.utils.config import PROJECT_ROOT
+from car_scraper.utils.config import settings
+from car_scraper.utils.human import human_delay, human_scroll, human_scroll_to_bottom
+from car_scraper.utils.playwright_stealth import stealth_sync
+from car_scraper.utils.proxy_manager import proxy_manager
 
 logger = logging.getLogger(__name__)
+tmp_dir = PROJECT_ROOT / "tmp"
 
 BTN_BRANDS = "button.filters-make-select-picker_Button__2ESw5"
 LI_BRAND = ".filters-make-select-list_BodyListItem__XTOEv"
@@ -69,27 +70,29 @@ class Webmotors_Scraper(BaseScraper):
     # -------------------------
     @contextmanager
     def _page(self, url: Optional[str] = None) -> Iterator[Page]:
+        #proxy_cfg = proxy_manager.get_proxy()
+
         with sync_playwright() as p:
-            #browser = p.chromium.launch(headless=self.headless, args=["--disable-blink-features=AutomationControlled"])
-            browser = p.chromium.launch(headless=self.headless, args=[
-                                                                      "--disable-blink-features=AutomationControlled",
-                                                                      "--disable-dev-shm-usage",
-                                                                      "--no-sandbox",
-                                                                      "--disable-extensions",
-                                                                      "--disable-gpu"
-                                                                    ],)
+            # browser = p.chromium.launch(headless=self.headless, args=["--disable-blink-features=AutomationControlled"])
+            browser = p.chromium.launch(headless=self.headless,
+         #                               proxy=proxy_cfg,
+                                        args=[ "--disable-blink-features=AutomationControlled", "--disable-dev-shm-usage", "--no-sandbox", "--disable-extensions", "--disable-gpu" ], )
             context: BrowserContext = browser.new_context(
                 user_agent=UA,
                 locale="pt-BR",
                 viewport=VIEWPORT,
                 extra_http_headers=HDRS
             )
-            stealth_sync(context)
             page = context.new_page()
             try:
                 if url:
                     page.goto(url, wait_until="domcontentloaded")
                 yield page
+
+            except Exception as e:
+                logger.error(f"Error while loading page with proxy {proxy}: {e}")
+                raise e
+
             finally:
                 context.close()
                 browser.close()
@@ -203,171 +206,6 @@ class Webmotors_Scraper(BaseScraper):
             except Exception:
                 return False
 
-    def extract_ad_info(self, items: list[str]) -> CarAdInfoDTO:
-        car_ad_info = CarAdInfoDTO()
-        for raw in items:
-            if "\n" in raw:
-                key, value = raw.strip().split("\n", 1)
-                key = key.strip()
-                value = value.strip()
-            else:
-                key = "Optional"
-                value = raw.strip()
-
-            match key:
-                case "Cidade":
-                    car_ad_info.city = value
-                case "Ano":
-                    car_ad_info.year = value
-                case "KM":
-                    try:
-                        car_ad_info.km = int(value.replace(".", "").replace(" km", "").strip())
-                    except ValueError:
-                        pass
-                case "Câmbio":
-                    car_ad_info.transmission = value
-                case "Carroceria":
-                    car_ad_info.type = value
-                case "Cor":
-                    car_ad_info.color = value
-                case "Aceita troca":
-                    car_ad_info.trade_in = value.lower() == "sim"
-                case "Único dono":
-                    car_ad_info.status = value.lower() == "sim"
-                case "IPVA pago":
-                    car_ad_info.ipva = value.lower() == "sim"
-                case "Licenciado":
-                    car_ad_info.license = value.lower() == "sim"
-                case "Optional":
-                    if car_ad_info.items is None:
-                        car_ad_info.items = []
-                    car_ad_info.items.append(value)
-
-        return car_ad_info
-
-    def get_seller_info(self, page) -> SellerInfoDTO | None:
-        page.wait_for_selector(LOC_CONTAINER)
-        container = page.locator(LOC_CONTAINER)
-
-        is_store = container.locator(LOC_STORE_WRAPPER).count() > 0
-        is_private = container.locator(LOC_PRIVATE_WRAPPER).count() > 0
-        seller_name = None
-        seller_location = None
-        contact_code = None
-        stock_url = None
-        phone_num = None
-
-        if is_private:
-            seller_name = container.locator(LOC_PRIVATE_NAME).text_content().strip()
-            seller_location = container.locator(LOC_PRIVATE_LOCATION).text_content().strip()
-
-        elif is_store:
-            seller_name = container.locator(LOC_NAME).text_content().strip()
-            seller_location = container.locator(LOC_LOCATION).text_content().strip()
-            code_loc = container.locator(LOC_CODE)
-            if code_loc.count() > 0:
-                contact_code = code_loc.text_content().strip()
-
-            stock_path = container.locator(LOC_STOCK).get_attribute("href")
-            phone_locator = container.locator(LOC_PHONE)
-            if phone_locator.count() > 0:
-                phone_num = phone_locator.text_content().strip()
-
-            if stock_path:
-                stock_url = f"https://www.webmotors.com.br{stock_path}"
-
-        if seller_name is not None:
-            seller_dto = SellerInfoDTO(
-                name=seller_name,
-                location=seller_location,
-                phone=phone_num,
-                contact_code=contact_code,
-                stock_url=stock_url,
-                is_private=is_private,
-            )
-        else:
-            seller_dto = None
-
-        logger.info(f"{seller_dto}")
-        return seller_dto
-
-
-    def parse_api_json_to_entity(api_json: dict) -> WebmotorsCarAd:
-        """
-        Converte o JSON bruto da API interna do Webmotors
-        para a entidade WebmotorsCarAd (SQLAlchemy ORM).
-        """
-
-        spec = api_json.get("Specification", {})
-        seller = api_json.get("Seller", {})
-        media = api_json.get("Media", {})
-
-        # Valores básicos
-        unique_id = api_json.get("UniqueId")
-
-        # Preços
-        prices = api_json.get("Prices", {})
-        price = float(prices.get("Price", 0)) if prices.get("Price") else None
-        search_price = float(prices.get("SearchPrice", 0)) if prices.get("SearchPrice") else None
-
-        # Fotos
-        photos_list = media.get("Photos", [])
-        photos = [{"url": p.get("PhotoPath"), "order": p.get("Order")} for p in photos_list]
-
-        # Conversões defensivas
-        def to_int(x: Optional[str]):
-            if x is None:
-                return None
-            try:
-                return int(x)
-            except:
-                return None
-
-        # Criar entidade ORM
-        entity = WebmotorsCarAd(
-            unique_id=unique_id,
-
-            price=price,
-            search_price=search_price,
-
-            make=spec.get("Make", {}).get("Value"),
-            model=spec.get("Model", {}).get("Value"),
-            version=spec.get("Version", {}).get("Value"),
-
-            year_fabrication=to_int(spec.get("YearFabrication")),
-            year_model=to_int(spec.get("YearModel")),
-            odometer=to_int(spec.get("Odometer")),
-            transmission=spec.get("Transmission"),
-            fuel=spec.get("Fuel"),
-            body_type=spec.get("BodyType"),
-
-            color=spec.get("Color", {}).get("Primary"),
-            final_plate=spec.get("FinalPlate"),
-            armored=(spec.get("Armored") == "S"),
-
-            # JSON fields
-            optionals=spec.get("Optionals", []),
-            lifestyle=spec.get("LifeStyle", []),
-            vehicle_attributes=spec.get("VehicleAttributes", []),
-
-            # Seller
-            seller_type=seller.get("SellerType"),
-            seller_name=seller.get("FantasyName"),
-            seller_city=seller.get("City"),
-            seller_state=seller.get("State"),
-            seller_cnpj=seller.get("CNPJ"),
-            seller_phones=seller.get("Phones", []),
-            seller_localization=seller.get("Localization", []),
-
-            photos=photos,
-
-            # Datas (ISO strings sem conversão)
-            created_date_api=api_json.get("CreatedDate"),
-            published_date_api=spec.get("DatePublished"),
-        )
-
-        return entity
-
     def get_car_ad_via_api(self, car_info: CarDownloadInfoDTO) -> WebmotorsCarAd | None:
         """
         Captura os detalhes completos do anúncio usando a chamada interna
@@ -404,60 +242,9 @@ class Webmotors_Scraper(BaseScraper):
             if not api_json:
                 ad_id = car_info.href.rstrip("/").split("/")[-1]
                 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                screenshot_path = f"error_screen_{ad_id}_{timestamp}.png"
+                screenshot_path = f"{tmp_dir}/error_screen_{ad_id}_{timestamp}.png"
                 page.screenshot(path=screenshot_path)
                 logger.error(f"Failed to capture internal API call for ad ID: {ad_id}. Screenshot saved at: {screenshot_path}")
                 return None
 
-
             return api_json
-
-    def get_car_ad(self, car_info: CarDownloadInfoDTO) -> tuple[CarAdInfoDTO, SellerInfoDTO] | None:
-        if not car_info.href:
-            return None
-
-        logger.info(f"Getting adds from: {car_info.href}")
-        with self._page(car_info.href) as page:
-            page.wait_for_selector(MAIN_AD_READY, timeout=WAIT_STD)
-            human_scroll_to_bottom(page)
-            ad_details = page.locator("main ul >> li")
-            items = ad_details.all_inner_texts()
-            ad_info = self.extract_ad_info(items)
-
-            ad_images = page.query_selector_all(AD_IMAGES)
-            ad_info.ad_images_links = []
-            for image_src in [img.get_attribute("src") for img in ad_images]:
-                ad_info.ad_images_links.append(image_src)
-
-            basicInformation = page.locator("#VehicleBasicInformationTitle")
-            ad_info.name = basicInformation.text_content()
-            ad_info.desc = page.locator("#VehicleBasicInformationDescription").text_content()
-
-            price_selector = page.locator("#vehicleSendProposalPrice")
-            price_text = price_selector.text_content()
-
-            if price_text:
-                cleaned = (
-                    price_text.replace("R$", "")
-                    .replace(".", "")
-                    .replace(",", ".")
-                    .strip()
-                )
-                try:
-                    ad_info.price = float(cleaned)
-                except ValueError:
-                    ad_info.price = None
-            else:
-                ad_info.price = None
-
-            ad_info.ad_link = car_info.href
-            ad_info.qty_images = len(ad_info.ad_images_links) + 1
-            ad_info.brand_id = car_info.brand_id
-            ad_info.job_id = car_info.job_id
-            ad_info.created_at = my_time_now()
-            ad_info.updated_at = my_time_now()
-
-            seller = self.get_seller_info(page)
-            logger.info(f"{ad_info}")
-
-            return ad_info, seller

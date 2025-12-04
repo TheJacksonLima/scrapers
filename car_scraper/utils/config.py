@@ -30,5 +30,8 @@ class Settings:
     LOG_FILE = config("LOG_FILE", default=str(Path(LOG_DIR) / "car_scraper.log"))
     LOG_LEVEL = config("LOG_LEVEL", default="INFO").upper()
 
+    WEBSHARE_SERVER: str = config("WEBSHARE_SERVER", default="")
+    WEBSHARE_USER: str = config("WEBSHARE_USER", default="")
+    WEBSHARE_PASS: str = config("WEBSHARE_PASS", default="")
 
 settings = Settings()

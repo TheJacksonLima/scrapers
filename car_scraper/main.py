@@ -16,6 +16,7 @@ from car_scraper.utils.exceptions import AdScrapingError
 from car_scraper.utils.human import human_delay
 from car_scraper.utils.logging_config import setup_logging
 from car_scraper.utils.my_time_now import my_time_now
+from car_scraper.utils.renew_tor_ip import renew_tor_ip
 
 logger = setup_logging()
 service = Service()
@@ -176,17 +177,12 @@ def get_car_ads(validate=False):
                 car_ad.status = JobStatus.RUNNING
                 service.update_car_download_info(car_ad)
 
-                #ad_info, seller = web_motors.get_car_ad(car_ad)
                 ad_info = web_motors.get_car_ad_via_api(car_ad)
-                save_payload(ad_info)
-                continue
-                seller.job_id = batch_info.job_id
-
                 if ad_info is not None:
+                    save_payload(ad_info)
                     ads_counter += 1
                     car_ad.status = JobStatus.COMPLETED
                     service.update_car_download_info(car_ad)
-                    l_ads_and_sellers.append((ad_info, seller))
                 else:
                     car_ad.status = JobStatus.FAILED
                     service.update_car_download_info(car_ad)
@@ -195,7 +191,6 @@ def get_car_ads(validate=False):
                 logger.exception(f"Error while processing ad {car_ad.href} — {car_ad.car_desc}")
                 car_ad.status = JobStatus.FAILED
                 service.update_car_download_info(car_ad)
-                #continue
                 raise e
 
         service.save_or_update_ads_and_sellers(l_ads_and_sellers)
@@ -207,7 +202,7 @@ def get_car_ads(validate=False):
         batch_info.status = JobStatus.FAILED
         batch_info.finished_at = my_time_now()
         batch_info.error_message = f"{type(e).__name__}: {e}"[:500]
-        raise
+        raise e
 
     finally:
         service.update_batch(batch_info)
@@ -241,6 +236,7 @@ def execute_validate_ads():
 
 def execute_get_car_ads():
     counter_ex = 0
+    #validate_ads()
     counter_ready_ads = service.get_count(JobStatus.READY)
 
     if counter_ready_ads == 0:
