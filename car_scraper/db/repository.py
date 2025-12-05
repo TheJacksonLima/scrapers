@@ -9,6 +9,7 @@ from car_scraper.db.entity.car_ad_info import CarAdInfo
 from car_scraper.db.entity.car_download_info import CarDownloadInfo
 from car_scraper.db.entity.brand import Brand
 from car_scraper.db.entity.seller_info import SellerInfo
+from car_scraper.db.models.enums.JobSource import JobSource
 from car_scraper.db.models.enums.JobStatus import JobStatus
 from car_scraper.db.models.enums.JobType import JobType
 from car_scraper.scrapers.scraper import BrandDTO
@@ -27,7 +28,7 @@ class Repository:
         stmt = select(Brand).where(Brand.source == source)
         return list(self.db.execute(stmt).scalars().all())
 
-    def get_by_source_and_name(self, source: str, name: str) -> Brand | None:
+    def get_by_source_and_name(self, source: JobSource, name: str) -> Brand | None:
         stmt = select(Brand).where(Brand.name == name, Brand.source == source)
         return self.db.execute(stmt).scalar_one_or_none()
 
@@ -36,7 +37,7 @@ class Repository:
         return self.db.execute(stmt).scalar_one_or_none()
 
     def save(self, dto: BrandDTO) -> Brand:
-        brand = self.get_by_source_and_name(dto.name, dto.source)
+        brand = self.get_by_source_and_name(dto.source,dto.name)
         if brand is None:
             brand = Brand(
                 name=dto.name,

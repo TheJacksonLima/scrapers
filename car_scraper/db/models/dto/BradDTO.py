@@ -1,6 +1,7 @@
 from typing import Optional
 from dataclasses import dataclass
 from car_scraper.db.entity.brand import Brand
+from car_scraper.db.models.enums.JobSource import JobSource
 
 
 @dataclass
@@ -8,7 +9,7 @@ class BrandDTO:
     id: int
     name: str
     href: Optional[str] = None
-    source: str = "unknown"
+    source: JobSource = None
     total_ads: int = 0
 
     def __str__(self):

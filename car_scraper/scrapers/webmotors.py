@@ -8,6 +8,7 @@ from playwright.sync_api import sync_playwright, Page, BrowserContext
 from car_scraper.db.entity.WebmotorsCarAd import WebmotorsCarAd
 from car_scraper.db.models.dto.BradDTO import BrandDTO
 from car_scraper.db.models.dto.CarDownloadInfoDTO import CarDownloadInfoDTO
+from car_scraper.db.models.enums.JobSource import JobSource
 from car_scraper.db.models.enums.JobStatus import JobStatus
 from car_scraper.scrapers.scraper import BaseScraper
 from car_scraper.utils.config import PROJECT_ROOT
@@ -134,7 +135,7 @@ class Webmotors_Scraper(BaseScraper):
                 if not name or not href:
                     continue
                 logger.info(f"{name} : {href}")
-                brands.append(BrandDTO(name=name, href=href, source="webmotors"))
+                brands.append(BrandDTO(name=name, href=href, source=JobSource.WEBMOTORS))
                 human_delay(0.2, 0.6)
 
             return brands

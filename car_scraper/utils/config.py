@@ -9,7 +9,8 @@ config = Config(repository=RepositoryEnv(str(env_path)))
 class Settings:
     """Central configuration object for environment variables."""
 
-    WEBMOTORS_URL: str = config("WEBMOTORS_URL", default="https://www.webmotors.com.br")
+    WEBMOTORS_URL: str = config("WEBMOTORS_URL")
+    MOBIAUTO_URL: str = config("MOBIAUTO_URL")
     ICARROS_URL: str = config("ICARROS_URL", default="https://www.icarros.com.br")
     OLX_AUTO_URL: str = config("OLX_AUTO_URL", default="https://www.olx.com.br/autos")
 

@@ -9,6 +9,8 @@ from car_scraper.db.models.enums.JobStatus import JobStatus
 from car_scraper.db.models.enums.JobType import JobType
 from car_scraper.db.session import engine
 from car_scraper.db.mongo_repository import save_payload
+from car_scraper.scrapers import BaseScraper
+from car_scraper.scrapers.mobiauto import MobiAuto_Scrapper
 from car_scraper.scrapers.webmotors import Webmotors_Scraper
 from car_scraper.services.service import Service
 from car_scraper.utils.config import settings
@@ -21,6 +23,7 @@ from car_scraper.utils.renew_tor_ip import renew_tor_ip
 logger = setup_logging()
 service = Service()
 web_motors = Webmotors_Scraper()
+mobi_auto = MobiAuto_Scrapper()
 
 
 def update_total_ads_all_brands():
@@ -106,15 +109,30 @@ def get_ads_from_brand(brand: BrandDTO, batch_info: JobDownloadControlDTO):
         service.update_batch(batch_info)
 
 
+def get_scraper(source: JobSource) -> BaseScraper | None:
+    if source == JobSource.WEBMOTORS:
+        scraper = web_motors
+        logger.debug("web_motors scraper")
+    elif source == JobSource.MOBIAUTO:
+        scraper = mobi_auto
+        logger.debug("mobi_auto scraper")
+    else:
+        logger.debug("Scraper not defined!!!")
+        raise "Missing scraper parameter or scrapper was not defined!!!"
+
+    return scraper
+
+
 def get_brands(source: JobSource):
     logger.info(f"Getting ads from brands")
     batch_info = service.create_batch(source, JobType.BRAND_DOWNLOAD)
 
     try:
-        brands = web_motors.get_brands()
-        saved = service.save_brands(brands)
+        scraper = get_scraper(source)
+        brands = scraper.get_brands()
+        brands_saved = service.save_brands(brands)
         batch_info.status = JobStatus.COMPLETED
-        logger.info(f"{len(saved)} brands updated/inserted.")
+        logger.info(f"{len(brands_saved)} brands updated/inserted.")
 
     except Exception as e:
         batch_info.status = JobStatus.FAILED
@@ -242,7 +260,7 @@ def execute_get_car_ads():
     if counter_ready_ads == 0:
         counter_ready_ads = 1
 
-    while counter_ready_ads > 0: #and counter_ex < int(settings.MAX_EX_ALLOWED)*10:
+    while counter_ready_ads > 0:  #and counter_ex < int(settings.MAX_EX_ALLOWED)*10:
         logger.info(f"Execute get car ads, total of READY ads: {counter_ready_ads}")
         try:
             get_car_ads()
@@ -262,15 +280,15 @@ def main():
     logger.info("Starting scraper...")
     Base.metadata.create_all(bind=engine)
     try:
-        # get_brands()
-        # update_total_ads_all_brands()
+        get_brands(JobSource.MOBIAUTO)
+    # update_total_ads_all_brands()
 
-        # brand = service.get_brand('webmotors', 'Honda')
-        # batch = init_batch(brand, JobType.CAR_DOWNLOAD_INFO)
-        # get_ads_from_brand(brand, batch)
-        # get_car_ads()
-        execute_get_car_ads()
-        #execute_validate_ads()
+    # brand = service.get_brand('webmotors', 'Honda')
+    # batch = init_batch(brand, JobType.CAR_DOWNLOAD_INFO)
+    # get_ads_from_brand(brand, batch)
+    # get_car_ads()
+    #execute_get_car_ads()
+    #execute_validate_ads()
     except Exception as e:
         logger.exception(f"Error executing scrapper {e}")
 
