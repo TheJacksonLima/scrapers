@@ -20,7 +20,7 @@ from car_scraper.utils.config import settings
 
 class Service:
     @staticmethod
-    def get_all_brands(source: str) -> List[BrandDTO]:
+    def get_all_brands(source: JobSource) -> List[BrandDTO]:
         with SessionLocal() as db:
             repo = Repository(db)
             return [BrandDTO.to_dto(b) for b in repo.get_all_brands(source)]
@@ -50,16 +50,16 @@ class Service:
             repo = Repository(db)
             saved: List[Brand] = []
             for dto in brand_dtos:
-                brand = repo.save(dto)
+                brand = repo.update_brand(dto)
                 saved.append(brand)
             db.commit()
             return saved
 
     @staticmethod
-    def update_ads(brand: BrandDTO, total_ads: int) -> BrandDTO:
+    def update_ads(brand: BrandDTO, total_ads: int, qty_pages: int) -> BrandDTO:
         with SessionLocal() as db:
             repo = Repository(db)
-            repo.update_total_ads(brand, total_ads)
+            repo.update_total_ads(brand, total_ads, qty_pages)
             db.commit()
             ret = repo.get_by_source_and_name(brand.source, brand.name)
             return BrandDTO.to_dto(ret)
@@ -109,14 +109,15 @@ class Service:
 
     @create_batch.register
     def _(self, brand: BrandDTO, job_type: JobType) -> JobDownloadControlDTO:
+
         batch = JobDownloadControl(
             job_type=job_type.value,
-            source_name=JobSource.WEBMOTORS,
+            source_name=brand.source,
             status=JobStatus.PENDING,
             error_message="",
             updated_at=my_time_now(),
             last_page=1,
-            total_pages=math.ceil(brand.total_ads / 47),
+            total_pages=0,
             attempts=0,
             brand_id=brand.id
         )

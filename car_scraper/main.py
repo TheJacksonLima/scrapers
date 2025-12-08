@@ -24,15 +24,17 @@ logger = setup_logging()
 service = Service()
 web_motors = Webmotors_Scraper()
 mobi_auto = MobiAuto_Scrapper()
+global scraper
 
-
-def update_total_ads_all_brands():
-    for brand in service.get_all_brands("webmotors"):
+def update_total_ads_all_brands(source: JobSource):
+    for brand in service.get_all_brands(source):
         logger.info(f"Getting ads from:{brand}")
         update_total_ads_from_brand(brand)
 
 
 def update_total_ads_from_brand(brand: BrandDTO):
+    global scraper
+
     logger.info(f"Updating total ads from brand {brand}")
     batch_info = service.create_batch(brand, JobType.BRAND_TOTAL_ADS_UPDATE)
 
@@ -42,11 +44,12 @@ def update_total_ads_from_brand(brand: BrandDTO):
 
     try:
         brand = service.get_brand(brand.source, brand.name)
-        total_ads = web_motors.get_total_ads(brand)
-        brand_updated = service.update_ads(brand, total_ads)
+        total_ads = scraper.get_total_ads(brand)
+        qty_pages = math.ceil(total_ads / scraper.ADS_PER_PAGE)
+        brand_updated = service.update_ads(brand, total_ads, qty_pages)
 
         batch_info.status = JobStatus.COMPLETED
-        batch_info.total_pages = math.ceil(brand_updated.total_ads / 47),
+        batch_info.total_pages = brand_updated.qty_pages
 
     except Exception as e:
         batch_info.status = JobStatus.FAILED
@@ -57,22 +60,23 @@ def update_total_ads_from_brand(brand: BrandDTO):
         service.update_batch(batch_info)
 
 
-def get_ads_from_brand(brand: BrandDTO, batch_info: JobDownloadControlDTO):
-    logger.info(f"Getting ads from brand {brand} batch {batch_info}")
+def get_ads_from_brand(brand: BrandDTO):
 
+    batch_info = init_batch(brand, JobType.CAR_DOWNLOAD_INFO)
     batch_info.status = JobStatus.RUNNING
     batch_info.attempts = batch_info.attempts + 1
     batch_info = service.update_batch(batch_info)
+    logger.info(f"Getting ads from brand {brand} batch {batch_info}")
 
     page_count = batch_info.last_page
     ad_count = 0
     count_no_action = 0
-
+    global scraper
     try:
         while True:
             brand.href = re.sub(r"page=\d+", f"page={page_count}", brand.href)
 
-            list_car_download_info = web_motors.get_cars_from_brand(brand, batch_info.job_id, page_count)
+            list_car_download_info = scraper.get_cars_from_brand(brand, batch_info.job_id, page_count)
             count_downloaded = len(list_car_download_info)
 
             saved = service.update_list_car_download_info(list_car_download_info)
@@ -91,8 +95,9 @@ def get_ads_from_brand(brand: BrandDTO, batch_info: JobDownloadControlDTO):
             if count_saved == 0:
                 count_no_action += 1
 
-            if (page_count > batch_info.total_pages) or (count_no_action == 3):
-                break
+            #if (page_count > batch_info.total_pages) or (count_no_action == 3):
+            if (page_count > brand.qty_pages):
+                    break
 
         batch_info.status = JobStatus.COMPLETED
         batch_info.error_message = ""
@@ -279,13 +284,17 @@ def execute_get_car_ads():
 def main():
     logger.info("Starting scraper...")
     Base.metadata.create_all(bind=engine)
+    source = JobSource.MOBIAUTO
+    global scraper
+    scraper = get_scraper(source)
+    brand = service.get_brand(source, 'Honda')
     try:
-        get_brands(JobSource.MOBIAUTO)
-    # update_total_ads_all_brands()
+        #get_brands(source)
+        update_total_ads_all_brands(source)
+        #get_ads_from_brand(brand)
 
     # brand = service.get_brand('webmotors', 'Honda')
     # batch = init_batch(brand, JobType.CAR_DOWNLOAD_INFO)
-    # get_ads_from_brand(brand, batch)
     # get_car_ads()
     #execute_get_car_ads()
     #execute_validate_ads()

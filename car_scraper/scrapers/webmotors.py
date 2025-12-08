@@ -19,7 +19,6 @@ from car_scraper.utils.proxy_manager import proxy_manager
 
 logger = logging.getLogger(__name__)
 tmp_dir = PROJECT_ROOT / "tmp"
-
 BTN_BRANDS = "button.filters-make-select-picker_Button__2ESw5"
 LI_BRAND = ".filters-make-select-list_BodyListItem__XTOEv"
 MAIN_READY = "main.search-result_Container__zDYhq a[href] h2"
@@ -61,6 +60,8 @@ HDRS = {"Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8"}
 
 
 class Webmotors_Scraper(BaseScraper):
+    ADS_PER_PAGE = 47
+
     def __init__(self, url_base: Optional[str] = None, headless: bool = False):
         self.url_base = (url_base or settings.WEBMOTORS_URL).rstrip("/") + "/carros-usados"
         self.headless = headless

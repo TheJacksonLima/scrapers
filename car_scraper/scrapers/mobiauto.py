@@ -9,6 +9,7 @@ import json
 from car_scraper.db.models.dto.BradDTO import BrandDTO
 from car_scraper.db.models.dto.CarDownloadInfoDTO import CarDownloadInfoDTO
 from car_scraper.db.models.enums.JobSource import JobSource
+from car_scraper.db.models.enums.JobStatus import JobStatus
 from car_scraper.scrapers import BaseScraper
 from car_scraper.utils.config import settings, PROJECT_ROOT
 
@@ -16,14 +17,15 @@ logger = logging.getLogger(__name__)
 tmp_dir = PROJECT_ROOT / "tmp"
 
 BASE = settings.MOBIAUTO_URL
+IMAGE_BASE = "https://image1.mobiauto.com.br/images/api/images/v1.0/"
+IMAGE_BASE_SUFIX = "/transform/fl_progressive,f_webp,q_100,w_72"
 HEADERS = {
     "User-Agent": "Mozilla/5.0"
 }
 
 
 class MobiAuto_Scrapper(BaseScraper):
-    def get_cars_from_brand(self, brand: BrandDTO) -> list[CarDownloadInfoDTO] | Optional[dict]:
-        pass
+    ADS_PER_PAGE = 24
 
     @staticmethod
     def slugify(text):
@@ -78,15 +80,17 @@ class MobiAuto_Scrapper(BaseScraper):
 
         for idx, item in enumerate(makes, start=1):
             name = item.get("name")
+            icon_url = IMAGE_BASE + str(item.get("imageId")) + IMAGE_BASE_SUFIX
             slug = self.slugify(name)
             total_ads = 0
 
-            href = f"{settings.MOBIAUTO_URL}/comprar/brasil/{slug}"
+            href = f"{settings.MOBIAUTO_URL}/comprar/carros/brasil/{slug}"
 
             brand = BrandDTO(
                 id=idx,
                 name=name,
                 href=href,
+                icon_url=icon_url,
                 total_ads=total_ads,
                 source=JobSource.MOBIAUTO
             )
@@ -100,26 +104,96 @@ class MobiAuto_Scrapper(BaseScraper):
         html = requests.get(href, headers=HEADERS).text
         return re.search(r'"buildId":"(.*?)"', html).group(1)
 
-    def get_cars_from_brand_test(self, brand: BrandDTO, job_id: int, page_num: int) -> list[CarDownloadInfoDTO] | \
-                                                                                       Optional[dict]:
-        #html = requests.get("https://www.mobiauto.com.br/comprar/brasil/audi", headers=HEADERS).text
-        build_id = self.get_build_id(brand.href)
+    def get_total_ads(self, brand: BrandDTO) -> Optional[int]:
 
-        logger.debug("Build ID:", build_id)
+        build_id = self.get_build_id(brand.href)
+        slug = brand.name.lower().replace(" ", "-")
+
+
+        json_url = f"{BASE}/comprar/_next/data/{build_id}/carros/brasil/{slug}.json"
+
+        logger.info(f"Fetching total ads from: {json_url}")
+
+        resp = requests.get(json_url, headers=HEADERS)
+
+        if resp.status_code != 200:
+            logger.error(f"Error fetching total ads JSON: {resp.status_code}")
+            return 0
+
+        try:
+            data = resp.json()
+        except Exception as e:
+            logger.exception("Could not decode JSON for brand")
+            return 0
+
+        try:
+            total_ads = (
+                data.get("pageProps", {})
+                .get("deals", {})
+                .get("numResults", 0)
+            )
+        except Exception as e:
+            logger.exception("Error parsing total ads JSON")
+            return 0
+
+        logger.info(f"Total ads available for {brand.name}: {total_ads}")
+        return total_ads
+
+    def get_cars_from_brand(self, brand: BrandDTO, job_id: int, page_num: int) -> list[CarDownloadInfoDTO]:
+        build_id = self.get_build_id(brand.href)
 
         if page_num == 1:
             url = f"{BASE}/comprar/_next/data/{build_id}/carros/brasil/{brand.name}.json"
         else:
             url = f"{BASE}/comprar/_next/data/{build_id}/carros/brasil/{brand.name}/{page_num}.json"
 
-        params = {
-            "params": ["carros", "brasil", "\"" + {brand.name} + "\""],
-            "page": page_num
-        }
+        logger.info(f"Getting ads from Mobiauto: {url}")
 
-        logger.info(f"Getting adds from: {url}")
-        resp = requests.get(url, headers=HEADERS, params=params)
+        resp = requests.get(url, headers=HEADERS)
 
-        logger.info("Status:", resp.status_code)
+        if resp.status_code != 200:
+            logger.error(f"Error fetching ads list: HTTP {resp.status_code}")
+            return []
 
-        return resp.json()
+        data = resp.json()
+
+        deals = data.get("pageProps", {}).get("dealsWithAds", [])
+
+        results: list[CarDownloadInfoDTO] = []
+
+        for item in deals:
+            deal = item.get("deal")
+            if not deal:
+                continue
+
+            deal_id = deal["id"]
+
+            href = f"https://www.mobiauto.com.br/anuncio/{deal_id}"
+
+            trim = deal.get("trim", {})
+            make = trim.get("make", {}).get("name", "")
+            model = trim.get("model", {}).get("name", "")
+            version = trim.get("name", "")
+            year = trim.get("productionYear", "")
+
+            car_desc = f"{make} {model} {version} {year}".strip()
+
+            images = deal.get("images", [])
+            image_url = None
+            if images:
+                img_id = images[0]["imageId"]
+                image_url = f"https://cdn.mobiauto.com.br/{img_id}"
+
+            dto = CarDownloadInfoDTO(
+                href=href,
+                car_desc=car_desc,
+                image=image_url,
+                brand_id=brand.id,
+                job_id=job_id,
+                status=JobStatus.PENDING,
+                page=page_num
+            )
+
+            results.append(dto)
+
+        return results

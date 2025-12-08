@@ -20,7 +20,9 @@ class Brand(Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     source: Mapped[JobSource] = mapped_column(PgEnum(JobSource), nullable=False)
     url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    icon_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     total_ads: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    qty_pages: Mapped[int] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

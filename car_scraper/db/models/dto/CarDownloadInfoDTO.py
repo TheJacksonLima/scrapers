@@ -7,7 +7,7 @@ from car_scraper.db.models.enums.JobStatus import JobStatus
 
 @dataclass
 class CarDownloadInfoDTO:
-    id: int = 0
+    id: Optional[int] = None
     job_id: int = 0
     href: str = ""
     page: int = 0
@@ -40,7 +40,6 @@ class CarDownloadInfoDTO:
     @staticmethod
     def to_entity(dto: "CarDownloadInfoDTO") -> CarDownloadInfo:
         return CarDownloadInfo(
-            id=dto.id,
             job_id=dto.job_id,
             href=dto.href,
             page=dto.page,

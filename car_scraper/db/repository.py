@@ -24,8 +24,9 @@ class Repository:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_all_brands(self, source: str) -> List[Brand]:
+    def get_all_brands(self, source: JobSource) -> List[Brand]:
         stmt = select(Brand).where(Brand.source == source)
+        show_sql(stmt)
         return list(self.db.execute(stmt).scalars().all())
 
     def get_by_source_and_name(self, source: JobSource, name: str) -> Brand | None:
@@ -36,23 +37,54 @@ class Repository:
         stmt = select(JobDownloadControl).where(JobDownloadControl.job_id == job_id)
         return self.db.execute(stmt).scalar_one_or_none()
 
-    def save(self, dto: BrandDTO) -> Brand:
-        brand = self.get_by_source_and_name(dto.source,dto.name)
+    def update_brand(self, dto: BrandDTO) -> Brand:
+
+        brand = self.get_by_source_and_name(dto.source, dto.name)
+
         if brand is None:
             brand = Brand(
                 name=dto.name,
                 source=dto.source,
                 url=dto.href,
+                icon_url=dto.icon_url,
+                total_ads=dto.total_ads,
             )
             self.db.add(brand)
-        else:
+            self.db.commit()
+            self.db.refresh(brand)
+            logger.info(f"Inserted new brand: {brand.name} ({brand.source})")
+            return brand
+
+        changed = False
+
+        if brand.url != dto.href:
             brand.url = dto.href
+            changed = True
+
+        if brand.icon_url != dto.icon_url:
+            brand.icon_url = dto.icon_url
+            changed = True
+
+        if brand.total_ads != dto.total_ads:
+            brand.total_ads = dto.total_ads
+            changed = True
+
+        if brand.name != dto.name:
+            brand.name = dto.name
+            changed = True
+
+        if changed:
+            self.db.commit()
+            self.db.refresh(brand)
+            logger.info(f"Updated brand: {brand.name} ({brand.source})")
+
         return brand
 
-    def update_total_ads(self, brand_input: BrandDTO, total_ads: int) -> Optional[Brand]:
+    def update_total_ads(self, brand_input: BrandDTO, total_ads: int, qty_ads: int) -> Optional[Brand]:
         brand = self.get_by_source_and_name(brand_input.source, brand_input.name)
         if brand:
             brand.total_ads = total_ads
+            brand.qty_ads = qty_ads
             self.db.add(brand)
             self.db.commit()
             self.db.refresh(brand)
