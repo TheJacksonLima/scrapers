@@ -56,10 +56,10 @@ class Service:
             return saved
 
     @staticmethod
-    def update_ads(brand: BrandDTO, total_ads: int, qty_pages: int) -> BrandDTO:
+    def update_ads(brand: BrandDTO) -> BrandDTO:
         with SessionLocal() as db:
             repo = Repository(db)
-            repo.update_total_ads(brand, total_ads, qty_pages)
+            repo.update_total_ads(brand)
             db.commit()
             ret = repo.get_by_source_and_name(brand.source, brand.name)
             return BrandDTO.to_dto(ret)

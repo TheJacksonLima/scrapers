@@ -44,9 +44,9 @@ def update_total_ads_from_brand(brand: BrandDTO):
 
     try:
         brand = service.get_brand(brand.source, brand.name)
-        total_ads = scraper.get_total_ads(brand)
-        qty_pages = math.ceil(total_ads / scraper.ADS_PER_PAGE)
-        brand_updated = service.update_ads(brand, total_ads, qty_pages)
+        brand.total_ads = scraper.get_total_ads(brand)
+        brand.qty_pages = math.ceil(brand.total_ads / scraper.ADS_PER_PAGE)
+        brand_updated = service.update_ads(brand)
 
         batch_info.status = JobStatus.COMPLETED
         batch_info.total_pages = brand_updated.qty_pages

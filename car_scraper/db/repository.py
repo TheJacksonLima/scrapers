@@ -80,11 +80,11 @@ class Repository:
 
         return brand
 
-    def update_total_ads(self, brand_input: BrandDTO, total_ads: int, qty_ads: int) -> Optional[Brand]:
+    def update_total_ads(self, brand_input: BrandDTO) -> Optional[Brand]:
         brand = self.get_by_source_and_name(brand_input.source, brand_input.name)
         if brand:
-            brand.total_ads = total_ads
-            brand.qty_ads = qty_ads
+            brand.total_ads = brand_input.total_ads
+            brand.qty_pages = brand_input.qty_pages
             self.db.add(brand)
             self.db.commit()
             self.db.refresh(brand)
