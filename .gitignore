@@ -1,3 +1,6 @@
+proxy.txt
+car_scraper/.env
+
 # === Python ===
 __pycache__/
 *.py[cod]
@@ -103,7 +106,7 @@ ehthumbs.db
 desktop.ini
 
 # Environment / secrets
-.env
+car_scraper/.env
 .env.*
 *.env
 application.properties
@@ -119,3 +122,4 @@ screenshots/
 user_data_dir/
 
 tmp/
+

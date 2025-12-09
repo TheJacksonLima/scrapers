@@ -20,7 +20,7 @@ from car_scraper.utils.config import settings
 
 class Service:
     @staticmethod
-    def get_all_brands(source: str) -> List[BrandDTO]:
+    def get_all_brands(source: JobSource) -> List[BrandDTO]:
         with SessionLocal() as db:
             repo = Repository(db)
             return [BrandDTO.to_dto(b) for b in repo.get_all_brands(source)]
@@ -38,10 +38,11 @@ class Service:
             return BrandDTO.to_dto(repo.get_ads_from_brand(brand_dto.get_entity()))
 
     @staticmethod
-    def get_ads_to_download(max_ads=settings.MAX_ADS_TO_PROCESS, status=JobStatus.PENDING) -> List[CarDownloadInfoDTO]:
+    def get_ads_to_download(max_ads=settings.MAX_ADS_TO_PROCESS, status=JobStatus.PENDING, source=JobSource.WEBMOTORS) -> List[CarDownloadInfoDTO]:
         with SessionLocal() as db:
             repo = Repository(db)
-            ret = repo.get_car_ads(max_ads, status)
+            ret = repo.get_car_ads(max_ads, status, source)
+            repo.mark_ads_as_running(ret)
             return CarDownloadInfoDTO.from_entity_list(ret)
 
     @staticmethod
@@ -50,16 +51,16 @@ class Service:
             repo = Repository(db)
             saved: List[Brand] = []
             for dto in brand_dtos:
-                brand = repo.save(dto)
+                brand = repo.update_brand(dto)
                 saved.append(brand)
             db.commit()
             return saved
 
     @staticmethod
-    def update_ads(brand: BrandDTO, total_ads: int) -> BrandDTO:
+    def update_ads(brand: BrandDTO) -> BrandDTO:
         with SessionLocal() as db:
             repo = Repository(db)
-            repo.update_total_ads(brand, total_ads)
+            repo.update_total_ads(brand)
             db.commit()
             ret = repo.get_by_source_and_name(brand.source, brand.name)
             return BrandDTO.to_dto(ret)
@@ -109,14 +110,15 @@ class Service:
 
     @create_batch.register
     def _(self, brand: BrandDTO, job_type: JobType) -> JobDownloadControlDTO:
+
         batch = JobDownloadControl(
             job_type=job_type.value,
-            source_name=JobSource.WEBMOTORS,
+            source_name=brand.source,
             status=JobStatus.PENDING,
             error_message="",
             updated_at=my_time_now(),
             last_page=1,
-            total_pages=math.ceil(brand.total_ads / 47),
+            total_pages=0,
             attempts=0,
             brand_id=brand.id
         )
@@ -166,14 +168,15 @@ class Service:
             return l_ads_and_sellers_out
 
     @staticmethod
-    def get_ads_to_scrape(max_ads=settings.MAX_ADS_TO_PROCESS, status=JobStatus.READY) -> List[CarDownloadInfoDTO]:
+    def get_ads_to_scrape(max_ads=settings.MAX_ADS_TO_PROCESS, status=JobStatus.READY, source=JobSource.WEBMOTORS) -> List[CarDownloadInfoDTO]:
         with SessionLocal() as db:
             repo = Repository(db)
-            ret = repo.get_car_ads(max_ads, status)
+            ret = repo.get_car_ads(max_ads, status, source)
+            repo.mark_ads_as_running(ret)
             return CarDownloadInfoDTO.from_entity_list(ret)
 
     @staticmethod
-    def get_count(status: JobStatus) -> int | None:
+    def get_count_from_source(status: JobStatus, source: JobSource) -> int | None:
         with SessionLocal() as db:
             repo = Repository(db)
-            return repo.get_count(status)
+            return repo.get_count(status, source)

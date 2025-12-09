@@ -1,12 +1,17 @@
 from datetime import datetime
-from sqlalchemy import DateTime, func, ForeignKey, Integer, String, Boolean, Index
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import TYPE_CHECKING
+
+from sqlalchemy import DateTime, func, ForeignKey, Boolean, Index
+from sqlalchemy import Integer, String, Enum as PgEnum
+from sqlalchemy import Numeric
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.mutable import MutableList
-from car_scraper.db.entity.base import Base
-from sqlalchemy import Numeric
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from typing import TYPE_CHECKING
+from car_scraper.db.entity.base import Base
+from car_scraper.db.models.enums.JobSource import JobSource
+from car_scraper.db.models.enums.JobStatus import JobStatus
+
 if TYPE_CHECKING:
     from car_scraper.db.entity import Brand, JobDownloadControl
     from car_scraper.db.entity.seller_info import SellerInfo
@@ -32,7 +37,9 @@ class CarAdInfo(Base):
     type: Mapped[str] = mapped_column(String(100), nullable=False)
     color: Mapped[str] = mapped_column(String(100), nullable=False)
     trade_in: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    status: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    status: Mapped[JobStatus] = mapped_column(PgEnum(JobStatus), nullable=False, default="")
+    source: Mapped[JobSource] = mapped_column(PgEnum(JobSource), nullable=False, default="")
+
     ipva: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     license: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     items: Mapped[list[str]] = mapped_column(

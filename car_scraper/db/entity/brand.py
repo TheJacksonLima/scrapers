@@ -1,9 +1,13 @@
 from datetime import datetime, timezone
-from sqlalchemy import String, DateTime, Integer, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from car_scraper.db.entity.base import Base
-
 from typing import TYPE_CHECKING
+
+from sqlalchemy import DateTime, UniqueConstraint
+from sqlalchemy import Integer, String, Enum as PgEnum
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from car_scraper.db.entity.base import Base
+from car_scraper.db.models.enums.JobSource import JobSource
+
 if TYPE_CHECKING:
     from car_scraper.db.entity import CarDownloadInfo
     from car_scraper.db.entity.car_ad_info import CarAdInfo
@@ -14,9 +18,11 @@ class Brand(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
-    source: Mapped[str] = mapped_column(String(32), nullable=False)
+    source: Mapped[JobSource] = mapped_column(PgEnum(JobSource), nullable=False)
     url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    icon_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     total_ads: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    qty_pages: Mapped[int] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

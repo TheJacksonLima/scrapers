@@ -8,6 +8,7 @@ from playwright.sync_api import sync_playwright, Page, BrowserContext
 from car_scraper.db.entity.WebmotorsCarAd import WebmotorsCarAd
 from car_scraper.db.models.dto.BradDTO import BrandDTO
 from car_scraper.db.models.dto.CarDownloadInfoDTO import CarDownloadInfoDTO
+from car_scraper.db.models.enums.JobSource import JobSource
 from car_scraper.db.models.enums.JobStatus import JobStatus
 from car_scraper.scrapers.scraper import BaseScraper
 from car_scraper.utils.config import PROJECT_ROOT
@@ -18,7 +19,6 @@ from car_scraper.utils.proxy_manager import proxy_manager
 
 logger = logging.getLogger(__name__)
 tmp_dir = PROJECT_ROOT / "tmp"
-
 BTN_BRANDS = "button.filters-make-select-picker_Button__2ESw5"
 LI_BRAND = ".filters-make-select-list_BodyListItem__XTOEv"
 MAIN_READY = "main.search-result_Container__zDYhq a[href] h2"
@@ -60,6 +60,8 @@ HDRS = {"Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8"}
 
 
 class Webmotors_Scraper(BaseScraper):
+    ADS_PER_PAGE = 47
+
     def __init__(self, url_base: Optional[str] = None, headless: bool = False):
         self.url_base = (url_base or settings.WEBMOTORS_URL).rstrip("/") + "/carros-usados"
         self.headless = headless
@@ -134,7 +136,7 @@ class Webmotors_Scraper(BaseScraper):
                 if not name or not href:
                     continue
                 logger.info(f"{name} : {href}")
-                brands.append(BrandDTO(name=name, href=href, source="webmotors"))
+                brands.append(BrandDTO(name=name, href=href, source=JobSource.WEBMOTORS))
                 human_delay(0.2, 0.6)
 
             return brands

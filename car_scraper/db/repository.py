@@ -2,6 +2,7 @@ import logging
 from datetime import datetime
 from typing import List, Optional, Sequence
 from sqlalchemy import select, func
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from car_scraper.db.entity import JobDownloadControl, CarDownloadInfo
@@ -9,6 +10,7 @@ from car_scraper.db.entity.car_ad_info import CarAdInfo
 from car_scraper.db.entity.car_download_info import CarDownloadInfo
 from car_scraper.db.entity.brand import Brand
 from car_scraper.db.entity.seller_info import SellerInfo
+from car_scraper.db.models.enums.JobSource import JobSource
 from car_scraper.db.models.enums.JobStatus import JobStatus
 from car_scraper.db.models.enums.JobType import JobType
 from car_scraper.scrapers.scraper import BrandDTO
@@ -23,35 +25,67 @@ class Repository:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_all_brands(self, source: str) -> List[Brand]:
+    def get_all_brands(self, source: JobSource) -> List[Brand]:
         stmt = select(Brand).where(Brand.source == source)
+        show_sql(stmt)
         return list(self.db.execute(stmt).scalars().all())
 
-    def get_by_source_and_name(self, source: str, name: str) -> Brand | None:
-        stmt = select(Brand).where(Brand.name == name, Brand.source == source)
+    def get_by_source_and_name(self, name: str, source: JobSource) -> Brand | None:
+        stmt = select(Brand).where(func.lower(Brand.name) == name.lower(), Brand.source == source)
         return self.db.execute(stmt).scalar_one_or_none()
 
     def get_batch_by_job_id(self, job_id):
         stmt = select(JobDownloadControl).where(JobDownloadControl.job_id == job_id)
         return self.db.execute(stmt).scalar_one_or_none()
 
-    def save(self, dto: BrandDTO) -> Brand:
-        brand = self.get_by_source_and_name(dto.name, dto.source)
+    def update_brand(self, dto: BrandDTO) -> Brand:
+
+        brand = self.get_by_source_and_name(dto.source, dto.name)
+
         if brand is None:
             brand = Brand(
                 name=dto.name,
                 source=dto.source,
                 url=dto.href,
+                icon_url=dto.icon_url,
+                total_ads=dto.total_ads,
             )
             self.db.add(brand)
-        else:
+            self.db.commit()
+            self.db.refresh(brand)
+            logger.info(f"Inserted new brand: {brand.name} ({brand.source})")
+            return brand
+
+        changed = False
+
+        if brand.url != dto.href:
             brand.url = dto.href
+            changed = True
+
+        if brand.icon_url != dto.icon_url:
+            brand.icon_url = dto.icon_url
+            changed = True
+
+        if brand.total_ads != dto.total_ads:
+            brand.total_ads = dto.total_ads
+            changed = True
+
+        if brand.name != dto.name:
+            brand.name = dto.name
+            changed = True
+
+        if changed:
+            self.db.commit()
+            self.db.refresh(brand)
+            logger.info(f"Updated brand: {brand.name} ({brand.source})")
+
         return brand
 
-    def update_total_ads(self, brand_input: BrandDTO, total_ads: int) -> Optional[Brand]:
+    def update_total_ads(self, brand_input: BrandDTO) -> Optional[Brand]:
         brand = self.get_by_source_and_name(brand_input.source, brand_input.name)
         if brand:
-            brand.total_ads = total_ads
+            brand.total_ads = brand_input.total_ads
+            brand.qty_pages = brand_input.qty_pages
             self.db.add(brand)
             self.db.commit()
             self.db.refresh(brand)
@@ -132,24 +166,43 @@ class Repository:
         )
         return self.db.execute(stmt).scalar_one_or_none()
 
-    def get_car_ads(self, max_ads: int, status: JobStatus) -> List[CarDownloadInfo]:
+    def mark_ads_as_running(self, ads: list[CarDownloadInfo]):
+        if not ads:
+            return
+
+        try:
+            for ad in ads:
+                ad.status = JobStatus.RUNNING
+
+            self.db.commit()
+            logger.info(f"Marked {len(ads)} ads as RUNNING.")
+
+        except SQLAlchemyError as e:
+            logger.error(f"Error updating ads to RUNNING: {e}")
+            self.db.rollback()
+            raise
+    def get_car_ads(self, max_ads: int, status: JobStatus, source: JobSource) -> List[CarDownloadInfo]:
         stmt = (
             select(CarDownloadInfo)
             .where(
-                CarDownloadInfo.status == status
+                CarDownloadInfo.status == status,
+                CarDownloadInfo.source == source
+
             )
             .order_by(CarDownloadInfo.created_at.asc())
             .limit(max_ads)
+            .with_for_update(skip_locked=True)
         )
-        #show_sql(stmt)
+        show_sql(stmt)
         return self.db.execute(stmt).scalars().all()
 
-    def get_count(self, status) -> int | None:
+    def get_count(self, status: JobStatus, source: JobSource) -> int | None:
         stmt = (
             select(func.count(CarDownloadInfo.id))
             .where(
-                CarDownloadInfo.status == status
-            )
+                CarDownloadInfo.status == status,
+                CarDownloadInfo.source == source
+        )
         )
         return self.db.execute(stmt).scalar_one()
 
