@@ -1,5 +1,5 @@
+import argparse
 import math
-import re
 
 from car_scraper.db.entity.base import Base
 from car_scraper.db.models.dto.BradDTO import BrandDTO
@@ -7,24 +7,23 @@ from car_scraper.db.models.dto.JobDownloadControlDTO import JobDownloadControlDT
 from car_scraper.db.models.enums.JobSource import JobSource
 from car_scraper.db.models.enums.JobStatus import JobStatus
 from car_scraper.db.models.enums.JobType import JobType
-from car_scraper.db.session import engine
 from car_scraper.db.mongo_repository import save_payload
+from car_scraper.db.session import engine
 from car_scraper.scrapers import BaseScraper
 from car_scraper.scrapers.mobiauto import MobiAuto_Scrapper
 from car_scraper.scrapers.webmotors import Webmotors_Scraper
 from car_scraper.services.service import Service
-from car_scraper.utils.config import settings
 from car_scraper.utils.exceptions import AdScrapingError
 from car_scraper.utils.human import human_delay
 from car_scraper.utils.logging_config import setup_logging
 from car_scraper.utils.my_time_now import my_time_now
-from car_scraper.utils.renew_tor_ip import renew_tor_ip
 
 logger = setup_logging()
 service = Service()
 web_motors = Webmotors_Scraper()
 mobi_auto = MobiAuto_Scrapper()
-global scraper
+global scraper, source
+
 
 def update_total_ads_all_brands(source: JobSource):
     for brand in service.get_all_brands(source):
@@ -61,7 +60,6 @@ def update_total_ads_from_brand(brand: BrandDTO):
 
 
 def get_ads_from_brand(brand: BrandDTO):
-
     batch_info = init_batch(brand, JobType.CAR_DOWNLOAD_INFO)
     batch_info.status = JobStatus.RUNNING
     batch_info.attempts = batch_info.attempts + 1
@@ -74,11 +72,12 @@ def get_ads_from_brand(brand: BrandDTO):
     global scraper
     try:
         while True:
-            brand.href = re.sub(r"page=\d+", f"page={page_count}", brand.href)
+            #Dentro do scraper
+            #brand.href = re.sub(r"page=\d+", f"page={page_count}", brand.href)
 
             list_car_download_info = scraper.get_cars_from_brand(brand, batch_info.job_id, page_count)
             count_downloaded = len(list_car_download_info)
-
+            logger.info(f"Found: {list_car_download_info}")
             saved = service.update_list_car_download_info(list_car_download_info)
             count_saved = len(saved)
 
@@ -88,16 +87,16 @@ def get_ads_from_brand(brand: BrandDTO):
             batch_info.last_page = page_count
             service.update_batch(batch_info)
 
-            logger.info(f"Page: {page_count} ads saved: {ad_count}\n")
-
             page_count += 1
 
             if count_saved == 0:
                 count_no_action += 1
 
-            #if (page_count > batch_info.total_pages) or (count_no_action == 3):
-            if (page_count > brand.qty_pages):
-                    break
+            logger.info(f"Page: {page_count} of {brand.qty_pages}  - ads saved: {ad_count} of {brand.total_ads} - "
+                        f"missing payloads {count_no_action}\n")
+
+            if (page_count > brand.qty_pages) or (count_no_action == 3):
+                break
 
         batch_info.status = JobStatus.COMPLETED
         batch_info.error_message = ""
@@ -161,8 +160,9 @@ def check_if_add_is_missing(car_ad) -> bool:
 
 
 def validate_ads():
+    global source
     logger.info(f"Validating car ads")
-    l_car_ads = service.get_ads_to_download(settings.MAX_ADS_TO_PROCESS)
+    l_car_ads = service.get_ads_to_download(source=source)
     for car_ad in l_car_ads:
         try:
             if not check_if_add_is_missing(car_ad):
@@ -176,17 +176,19 @@ def validate_ads():
 
 
 def get_car_ads(validate=False):
+    global scraper, source
+
     l_ads_and_sellers = []
     ads_counter = 0
 
     logger.info(f"Getting car ads")
-    l_car_ads = service.get_ads_to_scrape()
+    l_car_ads = service.get_ads_to_scrape(status=JobStatus.PENDING, source=source)
 
     if not l_car_ads:
         logger.info(f"No car ads found!")
         return
 
-    batch_info = service.create_batch(JobSource.WEBMOTORS, JobType.CAR_INFO)
+    batch_info = service.create_batch(source, JobType.CAR_INFO)
     batch_info.status = JobStatus.RUNNING
     service.update_batch(batch_info)
 
@@ -200,7 +202,7 @@ def get_car_ads(validate=False):
                 car_ad.status = JobStatus.RUNNING
                 service.update_car_download_info(car_ad)
 
-                ad_info = web_motors.get_car_ad_via_api(car_ad)
+                ad_info = scraper.get_car_ad(car_ad)
                 if ad_info is not None:
                     save_payload(ad_info)
                     ads_counter += 1
@@ -260,7 +262,8 @@ def execute_validate_ads():
 def execute_get_car_ads():
     counter_ex = 0
     #validate_ads()
-    counter_ready_ads = service.get_count(JobStatus.READY)
+    global source
+    counter_ready_ads = service.get_count_from_source(JobStatus.PENDING, source)
 
     if counter_ready_ads == 0:
         counter_ready_ads = 1
@@ -278,29 +281,69 @@ def execute_get_car_ads():
         finally:
             #validate_ads()
             #human_delay(10, 30)
-            counter_ready_ads = service.get_count(JobStatus.READY)
+            counter_ready_ads = service.get_count_from_source(JobStatus.PENDING, source)
+
+
+def producer(brand):
+    if brand is None:
+        logger.error("Producer requires --brand")
+        return
+    get_ads_from_brand(brand)
+
+
+def consumer():
+    execute_get_car_ads()
 
 
 def main():
     logger.info("Starting scraper...")
     Base.metadata.create_all(bind=engine)
-    source = JobSource.MOBIAUTO
-    global scraper
-    scraper = get_scraper(source)
-    brand = service.get_brand(source, 'Honda')
-    try:
-        #get_brands(source)
-        update_total_ads_all_brands(source)
-        #get_ads_from_brand(brand)
 
-    # brand = service.get_brand('webmotors', 'Honda')
-    # batch = init_batch(brand, JobType.CAR_DOWNLOAD_INFO)
-    # get_car_ads()
-    #execute_get_car_ads()
-    #execute_validate_ads()
-    except Exception as e:
-        logger.exception(f"Error executing scrapper {e}")
+    parser = argparse.ArgumentParser(description="Car Scraper Worker")
 
+    parser.add_argument(
+        "--source",
+        type=str,
+        choices=["MOBIAUTO", "WEBMOTORS"],
+        required=True,
+        help="Source of ads to scrape"
+    )
+
+    parser.add_argument(
+        "--brand",
+        type=str,
+        required=False,
+        help="Brand to scrape (required only for producer)"
+    )
+
+    parser.add_argument(
+        "--action",
+        type=str,
+        choices=["producer", "consumer"],
+        required=True,
+        help="Choose producer or consumer mode"
+    )
+
+    args = parser.parse_args()
+
+    source_enum = JobSource[args.source]
+
+    # inicializa o scraper correto
+    global scraper, source
+    source = source_enum
+    scraper = MobiAuto_Scrapper() if source_enum == JobSource.MOBIAUTO else Webmotors_Scraper()
+
+    logger.info(f"Worker started | source={source_enum} | action={args.action}")
+
+    if args.action == "producer":
+        if not args.brand:
+            logger.error("Producer mode requires --brand argument")
+            return
+        brand = service.get_brand(args.brand, source_enum)
+        producer(brand)
+
+    elif args.action == "consumer":
+        consumer()
 
 if __name__ == "__main__":
     main()

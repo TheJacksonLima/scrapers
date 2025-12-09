@@ -1,6 +1,8 @@
 from datetime import datetime
 from sqlalchemy import DateTime, func, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from car_scraper.db.models.enums.JobSource import JobSource
 from car_scraper.db.models.enums.JobStatus import JobStatus
 from sqlalchemy import Integer, String, Enum as PgEnum
 from car_scraper.db.entity.base import Base
@@ -22,6 +24,7 @@ class CarDownloadInfo(Base):
     status: Mapped[JobStatus] = mapped_column(PgEnum(JobStatus), nullable=False, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), onupdate=func.now())
+    source: Mapped[JobSource] = mapped_column(PgEnum(JobSource), nullable=False, default="")
 
     brand_id: Mapped[int] = mapped_column(
         Integer,

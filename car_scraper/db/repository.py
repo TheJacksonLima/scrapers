@@ -2,6 +2,7 @@ import logging
 from datetime import datetime
 from typing import List, Optional, Sequence
 from sqlalchemy import select, func
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from car_scraper.db.entity import JobDownloadControl, CarDownloadInfo
@@ -29,8 +30,8 @@ class Repository:
         show_sql(stmt)
         return list(self.db.execute(stmt).scalars().all())
 
-    def get_by_source_and_name(self, source: JobSource, name: str) -> Brand | None:
-        stmt = select(Brand).where(Brand.name == name, Brand.source == source)
+    def get_by_source_and_name(self, name: str, source: JobSource) -> Brand | None:
+        stmt = select(Brand).where(func.lower(Brand.name) == name.lower(), Brand.source == source)
         return self.db.execute(stmt).scalar_one_or_none()
 
     def get_batch_by_job_id(self, job_id):
@@ -165,24 +166,43 @@ class Repository:
         )
         return self.db.execute(stmt).scalar_one_or_none()
 
-    def get_car_ads(self, max_ads: int, status: JobStatus) -> List[CarDownloadInfo]:
+    def mark_ads_as_running(self, ads: list[CarDownloadInfo]):
+        if not ads:
+            return
+
+        try:
+            for ad in ads:
+                ad.status = JobStatus.RUNNING
+
+            self.db.commit()
+            logger.info(f"Marked {len(ads)} ads as RUNNING.")
+
+        except SQLAlchemyError as e:
+            logger.error(f"Error updating ads to RUNNING: {e}")
+            self.db.rollback()
+            raise
+    def get_car_ads(self, max_ads: int, status: JobStatus, source: JobSource) -> List[CarDownloadInfo]:
         stmt = (
             select(CarDownloadInfo)
             .where(
-                CarDownloadInfo.status == status
+                CarDownloadInfo.status == status,
+                CarDownloadInfo.source == source
+
             )
             .order_by(CarDownloadInfo.created_at.asc())
             .limit(max_ads)
+            .with_for_update(skip_locked=True)
         )
-        #show_sql(stmt)
+        show_sql(stmt)
         return self.db.execute(stmt).scalars().all()
 
-    def get_count(self, status) -> int | None:
+    def get_count(self, status: JobStatus, source: JobSource) -> int | None:
         stmt = (
             select(func.count(CarDownloadInfo.id))
             .where(
-                CarDownloadInfo.status == status
-            )
+                CarDownloadInfo.status == status,
+                CarDownloadInfo.source == source
+        )
         )
         return self.db.execute(stmt).scalar_one()
 
