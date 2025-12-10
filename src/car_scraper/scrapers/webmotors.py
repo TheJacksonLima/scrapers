@@ -14,8 +14,6 @@ from car_scraper.scrapers.scraper import BaseScraper
 from car_scraper.utils.config import PROJECT_ROOT
 from car_scraper.utils.config import settings
 from car_scraper.utils.human import human_delay, human_scroll, human_scroll_to_bottom
-from car_scraper.utils.playwright_stealth import stealth_sync
-from car_scraper.utils.proxy_manager import proxy_manager
 
 logger = logging.getLogger(__name__)
 tmp_dir = PROJECT_ROOT / "tmp"

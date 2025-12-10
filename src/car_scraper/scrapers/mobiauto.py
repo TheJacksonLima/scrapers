@@ -1,14 +1,12 @@
 import json
 import logging
 import re
-from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 
 import requests
 import unicodedata
 
 from car_scraper.db.models.dto.BradDTO import BrandDTO
-from car_scraper.db.models.dto.CarAdInfoDTO import CarAdInfoDTO
 from car_scraper.db.models.dto.CarDownloadInfoDTO import CarDownloadInfoDTO
 from car_scraper.db.models.enums.JobSource import JobSource
 from car_scraper.db.models.enums.JobStatus import JobStatus

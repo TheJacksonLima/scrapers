@@ -13,8 +13,7 @@ from car_scraper.db.models.enums.JobSource import JobSource
 from car_scraper.db.models.enums.JobStatus import JobStatus
 
 if TYPE_CHECKING:
-    from car_scraper.db.entity import Brand, JobDownloadControl
-    from car_scraper.db.entity.seller_info import SellerInfo
+    pass
 
 
 class CarAdInfo(Base):

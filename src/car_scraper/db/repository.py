@@ -1,11 +1,11 @@
 import logging
 from datetime import datetime
-from typing import List, Optional, Sequence
+from typing import List, Optional
 from sqlalchemy import select, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from car_scraper.db.entity import JobDownloadControl, CarDownloadInfo
+from car_scraper.db.entity import JobDownloadControl
 from car_scraper.db.entity.car_ad_info import CarAdInfo
 from car_scraper.db.entity.car_download_info import CarDownloadInfo
 from car_scraper.db.entity.brand import Brand
@@ -15,7 +15,6 @@ from car_scraper.db.models.enums.JobStatus import JobStatus
 from car_scraper.db.models.enums.JobType import JobType
 from car_scraper.scrapers.scraper import BrandDTO
 from car_scraper.utils.human import show_sql
-from sqlalchemy import and_
 from car_scraper.utils.my_time_now import my_time_now
 
 logger = logging.getLogger(__name__)
@@ -26,12 +25,12 @@ class Repository:
         self.db = db
 
     def get_all_brands(self, source: JobSource) -> List[Brand]:
-        stmt = select(Brand).where(Brand.source == source)
+        stmt = select(Brand).where(Brand.source== source.value)
         show_sql(stmt)
         return list(self.db.execute(stmt).scalars().all())
 
     def get_by_source_and_name(self, name: str, source: JobSource) -> Brand | None:
-        stmt = select(Brand).where(func.lower(Brand.name) == name.lower(), Brand.source == source)
+        stmt = select(Brand).where(func.lower(Brand.name) == name.lower(), Brand.source == source.value)
         return self.db.execute(stmt).scalar_one_or_none()
 
     def get_batch_by_job_id(self, job_id):
@@ -114,7 +113,7 @@ class Repository:
                 changed = True
 
             if existing.status != car_download_info.status:
-                existing.status = car_download_info.status
+                existing.status = car_download_info.status.value
                 changed = True
 
             if changed:
@@ -138,15 +137,17 @@ class Repository:
 
     def update_batch(self, batch: JobDownloadControl) -> JobDownloadControl | None:
         existing_batch = self.get_batch_by_job_id(batch.job_id)
+
         if existing_batch:
-            existing_batch.status = batch.status
+
+            existing_batch.status = batch.status.value
             existing_batch.error_message = batch.error_message
             existing_batch.last_page = batch.last_page
             existing_batch.total_pages = batch.total_pages
             existing_batch.attempts = batch.attempts
-
-            if batch.status == JobStatus.COMPLETED:
-                existing_batch.finished_at = datetime.now()
+            existing_batch.started_at = batch.started_at
+            existing_batch.finished_at = batch.finished_at
+            existing_batch.updated_at = my_time_now()
 
             self.db.commit()
             self.db.refresh(existing_batch)
@@ -159,7 +160,8 @@ class Repository:
             select(JobDownloadControl)
             .where(
                 JobDownloadControl.brand_id == brand.id,
-                JobDownloadControl.job_type == job_type
+                JobDownloadControl.source_name == brand.source.value,
+                JobDownloadControl.job_type== job_type.value
             )
             .order_by(JobDownloadControl.created_at.desc())
             .limit(1)
@@ -185,8 +187,8 @@ class Repository:
         stmt = (
             select(CarDownloadInfo)
             .where(
-                CarDownloadInfo.status == status,
-                CarDownloadInfo.source == source
+                CarDownloadInfo.status == status.value,
+                CarDownloadInfo.source== source.value
 
             )
             .order_by(CarDownloadInfo.created_at.asc())
@@ -200,8 +202,8 @@ class Repository:
         stmt = (
             select(func.count(CarDownloadInfo.id))
             .where(
-                CarDownloadInfo.status == status,
-                CarDownloadInfo.source == source
+                CarDownloadInfo.status == status.value,
+                CarDownloadInfo.source== source.value
         )
         )
         return self.db.execute(stmt).scalar_one()

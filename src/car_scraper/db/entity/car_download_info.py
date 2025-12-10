@@ -9,8 +9,7 @@ from car_scraper.db.entity.base import Base
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from car_scraper.db.entity.job_download_control import JobDownloadControl
-    from car_scraper.db.entity.brand import Brand
+    pass
 
 
 class CarDownloadInfo(Base):
