@@ -2,9 +2,20 @@ from decouple import Config, RepositoryEnv
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent
-env_path = PROJECT_ROOT / "application.properties"
+"""
+print(f"PROJECT_ROOT:{PROJECT_ROOT}")
+env_path = PROJECT_ROOT / ".env"
+print(f"Resolved .env path: {env_path}")
 config = Config(repository=RepositoryEnv(str(env_path)))
+"""
 
+env_path = Path.cwd() / ".env"
+
+if not env_path.exists():
+    env_path = Path(__file__).resolve().parent.parent.parent / ".env"
+
+print(f"Using .env from: {env_path}")
+config = Config(repository=RepositoryEnv(str(env_path)))
 
 class Settings:
     """Central configuration object for environment variables."""
@@ -17,7 +28,7 @@ class Settings:
     MAX_ADS_TO_PROCESS: str = config("MAX_ADS_TO_PROCESS", default="50")
     MAX_EX_ALLOWED: str = config("MAX_EX_ALLOWED", default="7")
 
-    MONGO_URL: str = config("MONGO_URI", default="")
+    MONGO_URL: str = config("MONGO_URL", default="")
     MONGO_DB: str = config("MONGO_DB", default="")
     MONGO_CLIENT: str = config("MONGO_CLIENT", default="")
     MONGO_COLLECTION: str = config("MONGO_COLLECTION", default="")

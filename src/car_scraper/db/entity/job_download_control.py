@@ -10,9 +10,7 @@ from car_scraper.db.models.enums.JobType import JobType
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from car_scraper.db.entity.car_download_info import CarDownloadInfo
-    from car_scraper.db.entity.car_ad_info import CarAdInfo
-    from car_scraper.db.entity.seller_info import SellerInfo
+    pass
 
 class JobDownloadControl(Base):
     __tablename__ = "job_download_control"

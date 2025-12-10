@@ -1,7 +1,5 @@
-import math
 from functools import singledispatchmethod
 from typing import List, Tuple
-from datetime import datetime
 from car_scraper.db.entity import JobDownloadControl
 from car_scraper.db.entity.brand import Brand
 from car_scraper.db.models.dto.BradDTO import BrandDTO
@@ -26,7 +24,7 @@ class Service:
             return [BrandDTO.to_dto(b) for b in repo.get_all_brands(source)]
 
     @staticmethod
-    def get_brand(name: str, source: str) -> BrandDTO | None:
+    def get_brand(name: str, source: JobSource) -> BrandDTO | None:
         with SessionLocal() as db:
             repo = Repository(db)
             return BrandDTO.to_dto(repo.get_by_source_and_name(name, source))
@@ -147,6 +145,7 @@ class Service:
             ret = repo.create_batch(batch)
             db.commit()
             return JobDownloadControlDTO.to_dto(ret)
+
 
     @staticmethod
     def save_or_update_ads_and_sellers(l_ads_and_sellers: List[Tuple[CarAdInfoDTO, SellerInfoDTO]]) -> List[

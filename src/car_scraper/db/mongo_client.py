@@ -9,12 +9,7 @@ logger = logging.getLogger(__name__)
 @lru_cache()
 def get_mongo_collection():
     try:
-        a = settings.MONGO_URL
-        b = settings.MONGO_CLIENT
-        c = settings.MONGO_COLLECTION
-
         client = MongoClient(settings.MONGO_URL, serverSelectionTimeoutMS=5000)
-        #client = MongoClient("mongodb://root:secret@localhost:27017")
         db = client[settings.MONGO_CLIENT]
         collection = db[settings.MONGO_COLLECTION]
 
