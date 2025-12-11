@@ -238,7 +238,7 @@ class MobiAuto_Scrapper(BaseScraper):
 
         return {
             "UniqueId": unique_id,
-            "source": car_info.source.value,
+            "source": car_info.source,
+            "ad_link": car_info.href,
             "deal": deal
-
         }
